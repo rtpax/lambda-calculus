@@ -1,0 +1,152 @@
+
+Boolean Expressions
+
+T := Lxy.x
+F := Lxy.y
+
+& := Lxy.xyF
+| := Lxy.xTy
+~ := Lxy.xFT
+
+[a,b] = Lz.zab
+[a,b]T = a
+[a,b]F = b
+
+
+Natural Numbers:
+
+0 := Lsz.z
+1 := Lsz.s(z)
+2 := Lsz.s(s(z))
+3 := Lsz.s(s(s(z)))
+...
+n := Lsz.s(...s(z))
+
+S := Lwyx.y(wyx)
+
+S(0) = (Lwyx.y(wyx))Lsz.z = Lyx.y((Lsz.z)yx) = Lyx.y(x) = 1
+S(1) = (Lwyx.y(wyx))Lsz.s(z) = Lyx.y((Lsz.s(z))yx) = Lyx.y(y(x)) = 2
+...
+S(n) = n + 1
+
++ := Lab.aSb
+
++ 2 1 = (Lab.aSb)(Lsz.s(s(z)))(1) = (Lsz.s(s(z)))(S)(1) = S(S(1)) = S(2) = 3
+
+* := Lab.ab
+
+* 2 3 = (Lab.a(bS)0)(2)(3) = (Lsz.s(s(z)))(3S)(0) = 3S(3S(0)) = (+3(+3(0))) = 6
+
+^ := Lab.b(*a)1
+
+
+
+;::
+special symbols:
+
+    special symbols may not be used as variable names alone, but may be contained in them (except ` and #)
+    L . := ≡ : " ` ; ;:: ::; :: # ...= ( )
+
+    L                           lambda
+    .                           seperates arguments from result
+    <name> := <expr>            definition (may be chained).
+    <name> ≡ <expr>             equivalent to :=
+    <opt-name># ...= <expr>     inductive definition (# must be a natural number)
+    `<1 or more characters>`    multi-letter name
+    :<package>:<name>           resolve package scope if ambiguous, multiple packages as :<pkg1>:<pkg2>:<name> or :<pkg1>::<pkg2>:<name>
+    "<filename>"                inserts the contents of file <filename>. path relative to current file.
+    <package>::                 everything after this until :<package> is part of the package
+    ::<package>                 indicates the end of package
+    ; <one-line>                eol comment
+    ;:: <anything> ::;          block comment (may be nested)
+::;
+
+;:: 
+induction:
+
+    an inductive definition takes the form
+    <opt-name># ...= <expr> 
+    where expr may contain the special symbol #n where n is an integer, which evaluates to <opt-name>(# + n)
+    
+    for example
+
+    `apply self 0` := Lx.x
+    `apply self successor` := Lab.b(ab)
+    ; `apply self 1` := `apply self successor``apply self 0` = (Lab.b(ab))Lx.x = Lb.b((Lx.x)b) = Lb.bb = Lx.xx
+    ; `apply self 2` := `apply self successor``apply self 0` = (Lab.b(ab))Lx.xx = Lb.b((Lx.xx)b) = Lb.b(bb) 
+    `apply self #>0` := `apply self successor``apply self #-1`
+::;
+
+
+;::
+rules:
+    parse special before reading anything else
+    unless enclosed in `` or "" each character interpreted seperately
+::;
+
+
+
+;packages:
+    boolean::
+        T := L
+
+        T := Lxy.x
+        F := Lxy.y
+        
+        & := Lxy.xyF
+        | := Lxy.xTy
+        ~ := Lxy.xFT
+    ::boolean
+
+    natural::
+        0 := Lsz.z
+        S := Lwyx.y(wyx)
+        # ...= S(#-1)
+
+        ; 1 := Lsz.s(z)
+        ; 2 := Lsz.s(s(z))
+        ; 3 := Lsz.s(s(s(z)))
+        ; ...
+        ; n := Lsz.s(...s(z))
+
+
+        |0?| := Lx.x(TF)T
+        ; |0?|(0) = (Lx.x(TF)T)(Lsz.z) = (Lsz.z)(TF)T = T
+        ; |0?|(1) = (Lx.x(TF)T)(Lsz.s(z)) = (Lsz.s(z))(TF)T = TFT = F
+        ; |0?|(n>0) = F
+
+        Φ := Lpz.z(S(pT))(pT)
+        P := Ln.nΦ(Lz.z00)F
+
+        + := Lab.aSb
+        * := · := Lab.ab
+        ^ := Lab.b(*a)1
+
+        `Successor` := S
+        `Predecessor` := P
+
+    ::natural
+
+    
+    integers:
+        
+    rational:
+
+    real:
+
+    complex:
+
+    list:
+
+
+
+    
+
+
+
+
+
+
+
+
+
