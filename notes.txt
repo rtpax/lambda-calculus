@@ -44,21 +44,22 @@ S(n) = n + 1
 ;::
 special symbols:
 
+
     special symbols may not be used as variable names alone, but may be contained in them (except ` and #)
-    L . := ≡ : " ` ; ;:: ::; :: # ...= ( )
+    L . := : " ` ; ;:: ::; :: # ...= ( )
 
     L                           lambda
     .                           seperates arguments from result
     <name> := <expr>            definition (may be chained).
-    <name> ≡ <expr>             equivalent to :=
-    <opt-name># ...= <expr>     inductive definition (# must be a natural number)
-    `<1 or more characters>`    multi-letter name
-    :<package>:<name>           resolve package scope if ambiguous, multiple packages as :<pkg1>:<pkg2>:<name> or :<pkg1>::<pkg2>:<name>
-    "<filename>"                inserts the contents of file <filename>. path relative to current file.
+    <opt-name># ...= <expr>     inductive definition (# is a wildcard to represent any integer)
+    `<1 or more characters>     multi-letter name
+    :<package>:<name>           resolve package scope if ambiguous
+    "<filename>"                inserts the contents of file <filename>. path relative to current file. files are not reincluded if put more than once
     <package>::                 everything after this until :<package> is part of the package
     ::<package>                 indicates the end of package
     ; <one-line>                eol comment
-    ;:: <anything> ::;          block comment (may be nested)
+    ;:: <anything> ::;          block comment (may be nested as ;:: ;:: two layers deep ::; one layer deep ::;)
+
 ::;
 
 ;:: 
@@ -70,25 +71,26 @@ induction:
     
     for example
 
-    `apply self 0` := Lx.x
-    `apply self successor` := Lab.b(ab)
-    ; `apply self 1` := `apply self successor``apply self 0` = (Lab.b(ab))Lx.x = Lb.b((Lx.x)b) = Lb.bb = Lx.xx
-    ; `apply self 2` := `apply self successor``apply self 0` = (Lab.b(ab))Lx.xx = Lb.b((Lx.xx)b) = Lb.b(bb) 
-    `apply self #>0` := `apply self successor``apply self #-1`
+    `applyself0 := Lx.x
+    `applyselfsuccessor := Lab.b(ab)
+    ; `applyself1 := `applyselfsuccessor`applyself0 = (Lab.b(ab))Lx.x = Lb.b((Lx.x)b) = Lb.bb = Lx.xx
+    ; `applyself2 := `applyselfsuccessor`applyself0 = (Lab.b(ab))Lx.xx = Lb.b((Lx.xx)b) = Lb.b(bb) 
+    `applyself#>0 := `applyselfsuccessor`applyself#-1
+
 ::;
 
 
 ;::
-rules:
-    parse special before reading anything else
-    unless enclosed in `` or "" each character interpreted seperately
+token rules:
+    1: ignore comments
+    2: parse line by line
+    3: identify if a line could be referring to 
 ::;
 
 
 
 ;packages:
     boolean::
-        T := L
 
         T := Lxy.x
         F := Lxy.y
@@ -96,6 +98,7 @@ rules:
         & := Lxy.xyF
         | := Lxy.xTy
         ~ := Lxy.xFT
+    
     ::boolean
 
     natural::

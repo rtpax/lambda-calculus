@@ -15,6 +15,24 @@ bool is_valid_pkg_char(char c) {
     return (c >= 'a' && c <= 'z') || (c >= 'A' && c <= 'Z') || (c >= '0' && c <= '9') || (c == '_') || (c == '-');
 }
 
+bool is_name_break(char c) {
+    switch(c) {
+    case '(':
+    case ')':
+    case ' ':
+    case '\t':
+    case '\r':
+    case '\n':
+    case '`':
+    case ';':
+    case '.':
+    case ':':
+        return true;
+    default:
+        return false;    
+    }
+}
+
 token get_package(const std::string& check, int line_num, const char * filename) {
     size_t i = 0;
     token ret{token_type::none, "", line_num, filename};
@@ -182,11 +200,12 @@ std::vector<token> tokenize_line(std::string line, int line_num, const char * fi
             break;
         case '`':
             id = {token_type::identifier, "", line_num, filename};
-            for(i = i + 1; i < line.size() && line[i] != '`'; ++i) {
+            for(i = i + 1; i < line.size() && !is_name_break(line[i]); ++i) {
                 id.info += line[i];
             }
-            if(i == line.size() || line[i] != '`') {
-                emit_error("no closing '`' for identifier name", line_num, filename);
+            --i;
+            if(id.info.size() == 0) {
+                emit_warning("ignoring zero length name", line_num, filename);
             } else {
                 out.push_back(id);
             }

@@ -27,7 +27,10 @@ int token_test() {
             std::cout << " ...= ";
             break;
         case token_type::identifier:
-            std::cout << "`" << tik.info << " ";
+            if(tik.info.size() == 1)
+                std::cout << tik.info;
+            else
+                std::cout << "`" << tik.info << " ";
             break;
         case token_type::file:
             std::cout << "\"" << tik.info << "\"";
