@@ -6,31 +6,30 @@ enum class token_type {
     dot,
     define,
     inductive_definition,
-    inductive_identifier,
-    next_inductive_identifier,
     identifier,
     file,
     package_begin,
     package_end,
+    package_scope,
     lparen,
     rparen,
     newline, //newlines are ignored if parentheses are unbalanced
     none
 };
 
-enum comparator {
-    lt,gt,lte,gte,eq,nop;
-}
 
 struct token_info {};
 
 struct token {
     token_type tt;
     std::string info;
+    int line_num;
+    const char * filename;
 };
 
-template<class character>
-std::vector<token> tokenize(std::basic_istream<character> in);
+std::vector<token> tokenize(std::istream& in, const char * filename);
+std::vector<token> tokenize_line(std::string line, int line_num, char * filename);
+
 
 
 
