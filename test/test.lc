@@ -1,48 +1,46 @@
-;packages:
+boolean::
 
-    boolean::
+    T := Lxy.x
+    F := Lxy.y
+    
+    & := Lxy.xyF
+    | := Lxy.xTy
+    ~ := Lxy.xFT
+    
+::boolean
 
-        T := Lxy.x
-        F := Lxy.y
-        
-        & := Lxy.xyF
-        | := Lxy.xTy
-        ~ := Lxy.xFT
-        
-    ::boolean
+;::  comment begin
 
-    ;::  comment begin
+this is a block comment
+it spans multiple lines
 
-    this is a block comment
-    it spans multiple lines
+        comment end   ::;
 
-          comment end   ::;
+natural::
+    0 := Lsz.z
+    S := Lwyx.y(wyx)
+    # ...= S(#-1)
 
-    natural::
-        0 := Lsz.z
-        S := Lwyx.y(wyx)
-        # ...= S(#-1)
-
-        ; 1 := Lsz.s(z)
-        ; 2 := Lsz.s(s(z))
-        ; 3 := Lsz.s(s(s(z)))
-        ; ...
-        ; n := Lsz.s(...s(z))
+    ; 1 := Lsz.s(z)
+    ; 2 := Lsz.s(s(z))
+    ; 3 := Lsz.s(s(s(z)))
+    ; ...
+    ; n := Lsz.s(...s(z))
 
 
-        `0? := Lx.x(TF)T
-        ; `0?(0) = (Lx.x(TF)T)(Lsz.z) = (Lsz.z)(TF)T = T
-        ; `0?(1) = (Lx.x(TF)T)(Lsz.s(z)) = (Lsz.s(z))(TF)T = TFT = F
-        ; `0?(n>0) = F
+    `0? := Lx.x(TF)T
+    ; `0?(0) = (Lx.x(TF)T)(Lsz.z) = (Lsz.z)(TF)T = T
+    ; `0?(1) = (Lx.x(TF)T)(Lsz.s(z)) = (Lsz.s(z))(TF)T = TFT = F
+    ; `0?(n>0) = F
 
-        `Phi := Lpz.z(S(pT))(pT)
-        P := Ln.n`Phi(Lz.z0(0))F
+    `Phi := Lpz.z(S(pT))(pT)
+    P := Ln.n`Phi(Lz.z0(0))F
 
-        + := Lab.aSb
-        * := Lab.ab
-        ^ := Lab.b(*a)1
+    + := Lab.aSb
+    * := Lab.ab
+    ^ := Lab.b(*a)1
 
-        `Successor := S
-        `Predecessor := P
+    `Successor := S
+    `Predecessor := P
 
-    ::natural
+::natural

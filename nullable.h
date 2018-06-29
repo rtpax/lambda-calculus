@@ -3,10 +3,11 @@ struct nullable {
 private:
     T * _value;
 public:
-    bool null() {
+    bool null() const {
         return _value != nullptr;        
     }
-    operator T();
+    operator T&();
+    operator const T&();
     nullable() : _value(nullptr) {}
     nullable(const T&);
     ~nullable();
@@ -26,7 +27,12 @@ inline nullable<T>::~nullable() {
 }
 
 template<class T>
-inline nullable<T>::operator T() {
+inline nullable<T>::operator T&() {
+    return *_value;    
+}
+
+template<class T>
+inline nullable<T>::operator const T&() {
     return *_value;    
 }
 

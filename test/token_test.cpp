@@ -1,6 +1,18 @@
 #include "../token.h"
 #include <fstream>
 
+bool is_integer_string(std::string in) {
+    if(in.size() == 0) {
+        return false;
+    }
+    for(size_t i = 0; i < in.size(); ++i) {
+        if(in[i] < '0' || in[i] > '9') {
+            return false;
+        }
+    }
+    return true;
+}
+
 int token_test() {
     std::ifstream ifs("./test/test.lc", std::ifstream::in);
     if(!ifs.is_open()) {
@@ -27,10 +39,13 @@ int token_test() {
             std::cout << " ...= ";
             break;
         case token_type::identifier:
-            if(tik.info.size() == 1)
+            if(is_integer_string(tik.info)) {
+                std::cout << tik.info << " ";
+            } else if(tik.info.size() == 1) {
                 std::cout << tik.info;
-            else
+            } else {
                 std::cout << "`" << tik.info << " ";
+            }
             break;
         case token_type::file:
             std::cout << "\"" << tik.info << "\"";

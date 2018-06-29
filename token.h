@@ -13,7 +13,7 @@ enum class token_type {
     package_scope,
     lparen,
     rparen,
-    newline, //newlines are ignored if parentheses are unbalanced
+    newline,
     none
 };
 
