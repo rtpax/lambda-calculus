@@ -3,11 +3,35 @@
 namespace lambda {
 
 
-int replace_bound_in_expression(std::string name, expression& expr) {
-    return 0;
+int replace_bound_in_expression(std::string name, expression& expr, const_ref_component replace_with) {
+    for(size_t index = 0; i < expr.sub.size(); ++i) {
+        switch(expr.sub[index].type) {
+        case component_type::EXPRESSION:
+            replace_bound_in_expression(name,*expr.sub[index].value.e,replace_with);
+            break;
+        case component_type::LAMBDA:
+            if(std::find_if(expr.sub[index].value.l->arguments.begin(), 
+                    expr.sub[index].value.l->arguments.begin(),
+                    [name&](identifier i)->bool{ return i.name == name; }) == expr.sub[index].value.l->arguments.end()) {
+                replace_bound_in_expression(name,expr.sub[index].value.l->ouput,replace_with);
+            }
+            break;
+        case component_type::IDENTIFIER:
+            if(expr.sub[index].type.i->scope == *bound) {
+                expr.sub[index] = replace_with;
+                expr.sub[index].parent(expr);
+            }
+            break;
+        default:
+            throw std::logic_error("cannot evaluate component of indeterminate type");
+        }
+    }
 }
 
-int apply_step(component& output, const_ref_component function, const_ref_component argument) {
+/*
+ * It is the callers responsibility to turn function into an expression if appropriate
+ */
+int apply_step(ref_component function, const_ref_component argument) {
     lambda func = *function.value.l;
 
     switch(function.type) {
@@ -27,13 +51,11 @@ int apply_step(component& output, const_ref_component function, const_ref_compon
     }
 
     if(func.arguments.size() == 0) {
-        throw std::logic_error("lambda cannot have zero arguments");
-    } else if(func.arguments.size() == 1) {
-        std::string argument_name = func.arguments[0];
-        replace_bound_in_expression(argument_name, func.output);
+        throw std::logic_error("cannot apply lambda with zero arguments");
     } else {
         std::string argument_name = func.arguments[0];
-
+        replace_bound_in_expression(argument_name, func.output, argument);
+        func.arguments.pop_front();
     }
 
     return 0;
@@ -74,9 +96,8 @@ int evaluate_step_expression(ref_component arg) {
         }
     } else /*size > 1*/ {
         for(size_t i = 0; i < expr.sub.size() - 1; ++i) {
-            component dummy;
-            if(apply_step(dummy,expr.sub[0], expr.sub[1])) {
-                expr.sub.erase(expr.sub.begin() + 1);
+            if(apply_step(expr.sub[0], expr.sub[1])) {
+                if(expr.sub[0]
                 return 1;
             }
         }

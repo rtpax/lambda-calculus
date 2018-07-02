@@ -70,8 +70,6 @@ struct identifier {
     package * scope;
     std::string name;
     nullable<lambda> value;
-
-    identifier() : name("") { }
 };
 
 struct package {
@@ -86,15 +84,12 @@ struct expression {
     std::vector<component> sub;
 
     int find_sub(const_ref_component which);
-    expression() {}
 };
 
 struct lambda {
     ref_component parent;
     std::vector<std::string> arguments;
     expression output;
-
-    lambda() {}
 };
 
 struct component {
@@ -105,7 +100,21 @@ struct component {
         identifier i;
         U() {}
         U(const U&) { throw std::logic_error("component::U copy constructor should not be called"); }
-        ~U() {}
+        ~U() { 
+            switch() {
+            case component_type::EXPRESSION:
+                value.e->~expression();
+                break;
+            case component_type::LAMBDA:
+                value.l->~lambda();
+                break;
+            case component_type::IDENTIFIER:
+                value.i->~identifier();
+                break;
+            default:
+                break;
+            }
+        }
         void operator=(const U&) { throw std::logic_error("component::U operator= should not be called");  }
     } value;
 
@@ -128,6 +137,12 @@ struct component {
             type = component_type::NONE;
             break;
         }
+    }
+
+    component& operator=(component set) {
+        value.~U();
+        this->component(set);
+        return *this;
     }
     
     ref_component parent() {
@@ -307,7 +322,7 @@ int evaluate(ref_component);
 int expand_step(ref_component);
 int expand(ref_component);
 
-int apply_step(component& output, const_ref_component function, const_ref_component argument);
+int apply_step(ref_component function, const_ref_component argument);
 
 
 }
