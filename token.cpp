@@ -3,35 +3,9 @@
 #include "emit.h"
 #include <stdio.h>
 
-bool is_whitespace(char c) {
-    return (c == ' ' || c == '\t' || c == '\r' || c=='\n');
-}
+namespace lambda {
 
-bool is_num(char c) {
-    return (c >= '0' && c <= '9');
-}
 
-bool is_valid_pkg_char(char c) {
-    return (c >= 'a' && c <= 'z') || (c >= 'A' && c <= 'Z') || (c >= '0' && c <= '9') || (c == '_') || (c == '-');
-}
-
-bool is_name_break(char c) {
-    switch(c) {
-    case '(':
-    case ')':
-    case ' ':
-    case '\t':
-    case '\r':
-    case '\n':
-    case '`':
-    case ';':
-    case '.':
-    case ':':
-        return true;
-    default:
-        return false;    
-    }
-}
 
 token get_package(const std::string& check, int line_num, const char * filename) {
     size_t i = 0;
@@ -137,8 +111,8 @@ token get_include(std::string check, int line_num, const char * filename) {
     return ret;
 }
 //┌┘
-//╪╤╧╘
-//╫╓╒╙╥╨╬═╠╦╩╔╚╟╞┼─├┬┴└┐╛╜╝╗║╣╕╖╢╡┤│
+//╒╪╤╧╘
+//╫╓╙╥╨╬═╠╦╩╔╚╟╞┼─├┬┴└┐╛╜╝╗║╣╕╖╢╡┤│
 
 std::vector<token> tokenize_line(std::string line, int line_num, const char * filename, int& comment) {
     std::vector<token> out;
@@ -277,3 +251,4 @@ std::vector<token> tokenize(std::istream& in, const char * filename) {
 
 
 
+}
