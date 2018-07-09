@@ -7,7 +7,7 @@ namespace lambda {
 
 
 
-token get_package(const std::string& check, int line_num, const char * filename) {
+token get_package(const std::string& check, int line_num, std::string filename) {
     size_t i = 0;
     token ret{token_type::none, "", line_num, filename};
 
@@ -79,7 +79,7 @@ token get_package(const std::string& check, int line_num, const char * filename)
     return ret;
 }
 
-token get_include(std::string check, int line_num, const char * filename) {
+token get_include(std::string check, int line_num, std::string filename) {
     token ret{token_type::file,"",line_num,filename};
     size_t i = 0;
     for(; i < check.size() && is_whitespace(check[i]); ++i);
@@ -114,7 +114,7 @@ token get_include(std::string check, int line_num, const char * filename) {
 //╒╪╤╧╘
 //╫╓╙╥╨╬═╠╦╩╔╚╟╞┼─├┬┴└┐╛╜╝╗║╣╕╖╢╡┤│
 
-std::vector<token> tokenize_line(std::string line, int line_num, const char * filename, int& comment) {
+std::vector<token> tokenize_line(std::string line, int line_num, std::string filename, int& comment) {
     std::vector<token> out;
 
     size_t i = 0;
@@ -228,7 +228,7 @@ std::vector<token> tokenize_line(std::string line, int line_num, const char * fi
     return out;
 }
 
-std::vector<token> tokenize(std::istream& in, const char * filename) {
+std::vector<token> tokenize(std::istream& in, std::string filename) {
     std::vector<token> out;
 
     int comment = 0;

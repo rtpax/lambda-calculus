@@ -13,28 +13,49 @@ namespace lambda {
 class package;
 class component;
 
+/**
+ * Stores values of idenitifiers in `packages`. Identifiers that belong to a specific package
+ * should store a pointer to that package. There are no nested packages.
+ * 
+ * Special packages are dummies that indicate a more general attribute (namely global, bound, lambda, expr)
+ **/
 class package {
+private:
     std::map<std::string, component> values;
 public:
     const component * get_value(std::string key);
     void add_value(std::string key, const component& to_add);
 };
 
+/**
+ * Containes dummy packages whit special meanings
+ **/
 namespace prepkg {
-    package bound, global, lambda, expr;
+    /**Indicates an identifier that corresponds to an argument to a lambda**/
+    inline package bound;
+    /**Indicates an identifier that does not belong to a specific package, but rather is globally accessable**/
+    inline package global;
+    /**Indicates a component that is a lambda expression. See component::lambda()**/
+    inline package lambda;
+    /**Indicates a component that is an expression. See component::expr()**/
+    inline package expr;
 }
 
 class global_package {
 private:
     std::map<std::string, component> values;
     std::map<std::string, package> packages;
+    std::vector<std::string> open;
 public:
     package * add_package(std::string key);
     package * get_package(std::string key);
 
     const component * get_value(std::string key);
     void add_value(std::string key, const component& to_add);
-} global;
+};
+
+/**singleton used by components**/
+inline global_package global;
 
 class component {
 private:
@@ -47,17 +68,71 @@ private:
     nullable<component> _tail;
 
 public:
+    component() {
+        _parent = nullptr;
+        _scope = nullptr;
+    }
+    component(const component& copy) {
+        _parent = nullptr;
+        _scope = copy._scope;
+        _name = copy._name;
+        _head = copy._head;
+        _tail = copy._tail;
+        if(!_head.null()) {
+            _head.get().parent() = this;
+        }
+        if(!_tail.null()) {
+            _head.get().parent() = this;
+        }
+    }
+    component(component&& steal) {
+        nullable<component> head = std::move(steal._head);
+        nullable<component> tail = std::move(steal._tail);
 
-    component& copy_preserve_parent(component copy) {
+        _parent = nullptr;
+        _scope = std::move(copy._scope);
+        _name = std::move(copy._name);
+        _head = head;
+        _tail = tail;
+        if(!_head.null()) {
+            _head.get().parent() = this;
+        }
+        if(!_tail.null()) {
+            _head.get().parent() = this;
+        }
+    }
+
+    component& copy_preserve_parent(const component& copy) {
         component * temp_parent = parent();
         *this = copy;
         parent() = temp_parent;
         return *this;
     }
+    component& copy_preserve_parent(component&& steal) {
+        component * temp_parent = parent();
+        *this = std::move(steal);
+        parent() = temp_parent;
+        return *this;
+    }
+
 
     component*& parent() { return _parent; }
+    component* base_parent() { 
+        component * node = this;
+        while(node->parent() != nullptr) {
+            node = node->parent();
+        }
+        return node;
+    }
     package*& scope() { return _scope; }
-    const component * const parent() const { return _parent; }
+    const component* const parent() const { return _parent; }
+    const component* base_parent() const { 
+        const component * node = this;
+        while(node->parent() != nullptr) {
+            node = node->parent();
+        }
+        return node;
+    }
     const package * const scope() const { return _scope; }
 
     component& expr_head() {
@@ -76,15 +151,27 @@ public:
         assert(is_expr());
         return _tail.get();
     }
-    component& expr_head(component copy) {
+    component& expr_head(const component& copy) {
         assert(is_expr());
         _head.set(copy);
         _head.get().parent() = this;
         return _head.get();
     }
-    component& expr_tail(component copy) {
+    component& expr_head(component&& copy) {
+        assert(is_expr());
+        _head.set(std::move(copy));
+        _head.get().parent() = this;
+        return _head.get();
+    }
+    component& expr_tail(const component& copy) {
         assert(is_expr());
         _tail.set(copy);
+        _tail.get().parent() = this;
+        return _tail.get();
+    }
+    component& expr_tail(component&& steal) {
+        assert(is_expr());
+        _tail.set(std::move(steal));
         _tail.get().parent() = this;
         return _tail.get();
     }
@@ -114,15 +201,27 @@ public:
         assert(is_lambda());
         return _tail.get();
     }
-    component& lambda_arg(component copy) {
+    component& lambda_arg(const component& copy) {
         assert(is_lambda());
         _head.set(copy);
         _head.get().parent() = this;
         return _head.get();
     }
-    component& lambda_out(component copy) {
+    component& lambda_arg(component&& steal) {
+        assert(is_lambda());
+        _head.set(std::move(steal));
+        _head.get().parent() = this;
+        return _head.get();
+    }
+    component& lambda_out(const component& copy) {
         assert(is_lambda());
         _tail.set(copy);
+        _tail.get().parent() = this;
+        return _tail.get();
+    }
+    component& lambda_out(component&& steal) {
+        assert(is_lambda());
+        _tail.set(std::move(steal));
         _tail.get().parent() = this;
         return _tail.get();
     }
@@ -130,7 +229,7 @@ public:
     component& id(std::string name, package * pkg = &prepkg::bound) {
         _head.nullify();
         _tail.nullify();
-        _scope= pkg;
+        _scope = pkg;
         _name = name;
         _parent = nullptr;
 
@@ -161,9 +260,30 @@ public:
         return *this;
     }
 
-    bool is_id() const { return _scope != &prepkg::expr && _scope != &prepkg::lambda; }
+    bool is_id() const { return _scope != &prepkg::expr && _scope != &prepkg::lambda && _scope != nullptr; }
     bool is_expr() const { return _scope == &prepkg::expr; }
     bool is_lambda() const { return _scope == &prepkg::lambda; }
+    bool is_init() const { return _scope != nullptr; }
+    bool is_deep_init() const { 
+        if(is_expr()) {
+            return expr_head().is_deep_init() && expr_tail().is_deep_init();
+        } else if(is_lambda()) {
+            return lambda_arg().is_deep_init() && lambda_out().is_deep_init();
+        } else if(is_id()) {
+            return 1;
+        } else {
+            return false;
+        }
+    }
+
+    component& append(component to_add) {
+        if(is_init) {
+            expr(component(std::move(*this)), to_add);
+        } else {
+            copy_preserve_parent(to_add);
+        }
+        *this;
+    }
     
     int evaluate_step();
     int evaluate();
@@ -203,12 +323,36 @@ public:
             throw std::logic_error("alt name invalid");
         }
     }
-    bool bound_in_children(const std::string& check) const {
+    bool bound_in_argument(const std::string& check) const {
         if(is_lambda()) {
-            return false;
+            if(lambda_arg().id_name() == check) {
+                return false;
+            } else {
+                return lambda_out().bound_in_argument(check);
+            }
         } else if (is_expr()) {
-            return expr_head().bound_in_children(check)
-                || expr_tail().bound_in_children(check);
+            return expr_head().bound_in_argument(check)
+                || expr_tail().bound_in_argument(check);
+        } else if (is_id()) {
+            if(id_name() == check && scope() == &prepkg::bound) {
+                return true;
+            } else {
+                return false;
+            }
+        } else {
+            throw std::logic_error("component not a lambda, expression, or identifier");
+        }
+    }
+    bool bound_in_output(const std::string& check) const {
+        if(is_lambda()) {
+            if(lambda_arg().id_name() == check) {
+                return true;
+            } else {
+                return lambda_out().bound_in_output(check);
+            }
+        } else if (is_expr()) {
+            return expr_head().bound_in_output(check)
+                || expr_tail().bound_in_output(check);
         } else if (is_id()) {
             if(id_name() == check && scope() == &prepkg::bound) {
                 return true;

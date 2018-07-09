@@ -1,6 +1,8 @@
 #include "../token.h"
 #include <fstream>
 
+using namespace lambda;
+
 bool is_integer_string(std::string in) {
     if(in.size() == 0) {
         return false;

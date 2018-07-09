@@ -29,26 +29,26 @@ struct token {
     token_type tt;
     std::string info;
     int line_num;
-    const char * filename;
+    std::string filename;
 };
 
-std::vector<token> tokenize(std::istream& in, const char * filename);
-std::vector<token> tokenize_line(std::string line, int line_num, char * filename);
+std::vector<token> tokenize(std::istream& in, std::string filename);
+std::vector<token> tokenize_line(std::string line, int line_num, std::string filename);
 
 
-bool is_whitespace(char c) {
+inline bool is_whitespace(char c) {
     return (c == ' ' || c == '\t' || c == '\r' || c=='\n');
 }
 
-bool is_num(char c) {
+inline bool is_num(char c) {
     return (c >= '0' && c <= '9');
 }
 
-bool is_valid_pkg_char(char c) {
+inline bool is_valid_pkg_char(char c) {
     return (c >= 'a' && c <= 'z') || (c >= 'A' && c <= 'Z') || (c >= '0' && c <= '9') || (c == '_') || (c == '-');
 }
 
-bool is_name_break(char c) {
+inline bool is_name_break(char c) {
     switch(c) {
     case '(':
     case ')':

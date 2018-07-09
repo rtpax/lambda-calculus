@@ -1,0 +1,79 @@
+
+
+T := Lxy.x
+F := Lxy.y
+
+0 := Lsz.z
+S := Lwyx.y(wyx)
+# := S`#-1
+
+
+`Phi := Lpz.z(S(pT))(pT)
+P := Ln.n`Phi(Lz.z00)F
+
+- := Lab.bPa
++ := Lab.aSb
+* := Lab.a(bS)0
+^ := Lab.b(*a)1
+
+Z := Lx.xFT
+
+`do-fact := LN`gen.ZN1(*N(`gen(-N1)`gen))
+
+`fact := Ln.`do-fact`n`do-fact
+; with full evaluating right away
+; => Zn1(*n(`do-fact(-n1)`do-fact))
+; => Zn1(*n(Z(-n1)1(*(-n1)(`do-fact(-(-n1)1)`do-fact))))
+; => expand infinitely
+; only evaluate ids right away
+; => Ln.(LN`gen.ZN1(*N(`gen(-N1)`gen)))n(LN`gen.ZN1(*N(`gen(-N1)`gen)))
+; => Ln.(LN`gen.(Lx.x(Lxy.y)(Lxy.x))N(Lsz.sz)((Lab.ba)N(`gen((Lab.b(Ln.n(Lpz.z((Lwyx.y(wyx))(p(Lxy.x)))(p(Lxy.x)))(Lz.z(Lsz.z)(Lsz.z))(Lxy.y))a)NLn.(LN`gen.(Lx.x(Lxy.y)(Lxy.x))N(Lsz.sz)((Lab.ba)N(`gen((Lab.b(Ln.n(Lpz.z((Lwyx.y(wyx))(p(Lxy.x)))(p(Lxy.x)))(Lz.z(Lsz.z)(Lsz.z))(Lxy.y))a)
+; => done, but if we evaluate those parts that cannot recurse
+; => 
+
+[#,##] := Lz.z(S#)(S`##)
+
+-# := `[#,0]
++# := `[0,#]
+
++#/# := 
+
+-#/# := 
+
+
+
+
+
+
+`
+option to either evaluate free variables on the spot or let them just be free in functions
+
+if evaluated later (lazy):
+    their must be a dynamic scope, which could have non-intuitive results. 
+        (ie created in package, using variable from global space, conflicts with later define variable in package space)
+        this could be made false with a flag of its own (so package is determined right away)
+    explicit recursion is possible (though this should be it's own flag)
+    order of definition is unimportant
+
+if evaluated on the spot:
+    all identifiers used must already be defined before they are used
+    recursion must be done through combinators
+    note that no lambda expressions are evaluated, just ids are expanded
+    this should be the default since it matches lambda calculus
+
+
+
+we could evaluate expressions if at no point in the definition we see something of the from
+
+L---x---.---x---(`N1)(`N2)...(Xx)...(`N#)--- ; X, Y, Z, N#, and n# can be empty
+
+since this is potentially a combinator
+
+
+
+http://www.cse.chalmers.se/research/group/logic/TypesSS05/Extra/geuvers.pdf
+
+https://www.inf.fu-berlin.de/lehre/WS03/alpi/lambda.pdf
+
+https://mvanier.livejournal.com/2897.html
+

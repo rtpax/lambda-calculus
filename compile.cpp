@@ -1,142 +1,215 @@
 #include "compile.h"
-#include <assert.h>
-#include <algorithm>
 
 namespace lambda {
 
-
-int replace_bound_in_expression(std::string name, expression& expr, const component& replace_with) {
-    for(size_t index = 0; index < expr.sub.size(); ++index) {
-        switch(expr.sub[index].type) {
-        case component_type::EXPRESSION:
-            replace_bound_in_expression(name,expr.sub[index].value.e,replace_with);
-            break;
-        case component_type::LAMBDA:
-            if(std::find_if(expr.sub[index].value.l.arguments.begin(), 
-                    expr.sub[index].value.l.arguments.begin(),
-                    [&name](identifier i)->bool{ return i.name == name; }) == expr.sub[index].value.l.arguments.end()) {
-                replace_bound_in_expression(name,expr.sub[index].value.l.output,replace_with);
-            }
-            break;
-        case component_type::IDENTIFIER:
-            if(expr.sub[index].value.i.scope == &bound) {
-                expr.sub[index] = replace_with;
-                expr.sub[index].parent(&expr);
-            }
-            break;
-        default:
-            throw std::logic_error("cannot evaluate component of indeterminate type");
-        }
-    }
-}
-
-int apply_step(component& function, const component& argument) {
-    lambda& func = function.value.l;
-
-    switch(function.type) {
-    case component_type::EXPRESSION:
-        return 0;
-    case component_type::IDENTIFIER:
-        if(function.value.i.value.null()) {
-            return 0;
-        } else {
-            component * parent = function.parent;
-            function = (lambda)function.value.i.value;
-            function.parent = parent;
-        }
-        break;
-    case component_type::LAMBDA:
-        break;
-    default:
-        throw std::logic_error("cannot apply component of indeterminate type as function");
-    }
-
-    assert(function.type == component_type::LAMBDA);
-
-    if(func.arguments.size() == 0) {
-        throw std::logic_error("cannot apply lambda with zero arguments");
-    } else {
-        std::string argument_name = func.arguments[0];
-        replace_bound_in_expression(argument_name, func.output, argument);
-        func.arguments.pop_front();
-        if(func.arguments.size() == 0) {
-            component * parent = function.parent;
-            function = function.value.l.output;
-            function.parent = parent;
-        }
-    }
-
-    return 0;
-
-}
-
-int evaluate_step_expression(component& arg) {
-    expression& expr = arg.value.e;
-
-    if(expr.sub.size() == 0) {
-        throw std::logic_error("cannot evaluate empty expression");
-    }
-
-    for(size_t i = 0; i < expr.sub.size(); ++i) {
-        if(evaluate_step(expr.sub[i]))
-            return 1;
-    }
-
-    if(expr.sub.size() == 1) {
-        size_t index;
-        if(expr.parent->type == component_type::EXPRESSION) {
-            component * parent = expr.parent;
-            index = parent->value.e.find_sub(expr);
-            if(index == -1)
-                throw std::logic_error("expression's parent does not contain expression");
-            parent->value.e.sub[index] = expr.sub[0];
-            parent->value.e.sub[index].parent(parent);
-            return 1;
-        } else if (expr.sub[0].type == component_type::EXPRESSION) {
-            //if parent is lambda, setting expr will set lambda.out
-            //otherwise, only arg will have changed
-            component * parent = expr.parent;
-            expr = expr.sub[0].value.e;
-            expr.parent = parent;
-        } else {
-            return 0;
-        }
-    } else /*size > 1*/ {
-        for(size_t i = 0; i < expr.sub.size() - 1; ++i) {
-            if(apply_step(expr.sub[0], expr.sub[1])) {
-                if(expr.sub[0]
-                return 1;
-            }
-        }
+int load_file(std::string filename) {
+    std::ifstream ifs(filename, std::ifstream::in);
+    if(!ifs.is_open()) {
         return 0;
     }
-}
 
-int evaluate_step_lambda(component arg) {
-    lambda& lamb = arg.value.l;
+    std::vector<token> tok = tokenize(ifs, "filename");
+
+    ifs.close();
+
+    nullable<std::string> definition;
+
+    component* node = new component();
+    component* temp_node = nullptr;
+
+    std::vector<package*> pkgs;
+    std::vector<component*> parens;
+    std::vector<std::string> files;
     
-    return evaluate_step_expression(lamb.output);
-}
+    
+    for(std::vector<token>::iterator tik = tok.begin(); tik != tok.end(); ++tik) {
+        switch(tik->tt) {
+        case token_type::lambda:
+            std::cout << "L";
+            temp_node = node;
 
-int evaluate_step(component& arg) {
-    switch(arg.type) {
-    case component_type::EXPRESSION:
-        return evaluate_step_expression(arg);
-    case component_type::LAMBDA:
-        return evaluate_step_lambda(arg);
-    case component_type::IDENTIFIER:
-        return 0;
-    default:
-        throw std::logic_error("cannot evaluate component of indeterminate type");
+            ++tik;
+            if(tik->tt == token_type::dot || tik->tt == token_type::lparen) {
+                emit_error("lambda cannot have zero arguments", tik->line_num, tik->filename);
+            }
+
+            while(tik->tt != token_type::dot && tik->tt != token_type::lparen) {
+                if(tik->tt != token_type::identifier) {
+                    emit_error("lambda argument must be an identifier", tik->line_num, tik->filename);
+                }
+                //TODO check that id name is valid
+                node->lambda(id(tik->info), component());
+                node = &node->lambda_out();
+                std::cout << tik->info;
+            }
+            if(tik->tt == token_type::dot) {
+                std::cout << ".";
+            } else {
+                temp_node->expr(component(std::move(temp_node)), component());//move version of expr must be used, else node will be invalidated.
+                parens.push_back(temp_node);
+                node->expr(component(), component());
+                node = &node->expr_head();
+                std::cout << "("
+            }
+            break;
+        case token_type::dot:
+            emit_error("stray '.' in program", tik->line_num, tik->filename);            
+            break;
+        case token_type::define:
+            if(!definition.null()) {
+                emit_error("cannot have multiple defintions in the same statement", tik->line_num, tik->filename);
+            }
+            if(node->is_id() && node->parent() == nullptr && node->scope() == &prepkg::global) {
+                definition = node->id_name();
+                *node = component();
+            } else {
+                if(!node.is_init()) {
+                    emit_error("definition has no target", tik->line_num, tik->filename);
+                } else {
+                    emit_error("only identifiers can be defined", tik->line_num, tik->filename);
+                }
+            }
+            std::cout << " := ";
+            break;
+        case token_type::inductive_definition:
+            emit_error("inductive definitons not supported", , tik->line_num, tik->filename);
+            std::cout << " ...= ";
+            break;
+        case token_type::identifier:
+            if(node->bound_in_ancestor(tt->info)) {
+                node->expr(component().id(tt->info), component());
+                node = &node->expr_tail();
+            } else {
+                node->expr(component().id(tt->info, &prepkg::global), component());
+                node = &node->expr_tail();
+            }
+            if(tik.info.size() == 0) {
+                emit_error("zero length identifier is illegal", tik->line_num, tik->filename);
+            } else if(tik.info.size() == 1) {
+                std::cout << tik.info;
+            } else {
+                std::cout << "`" << tik.info << " ";
+            }
+            break;
+        case token_type::file:
+            if(/*file not opened yet*/1) {
+                load_file(tik->info);//TODO search for the file in viable spots before including
+            } else {
+                emit_warning("skipping repeated file", tik->line_num, tik->filename);
+            }
+            std::cout << "\"" << tik->info << "\"";
+            break;
+        case token_type::package_begin:
+            //TODO check if package has a valid name
+            if(pkgs.find(tik->info) == pkgs.end()) {
+                global.add_package(tik->info);
+                pkgs.push_back(tik->info);
+            } else {
+                emit_warning("began package twice", tik->line_num, tik->filename);
+            }
+            std::cout << tik->info << "::\n";
+            break;
+        case token_type::package_end:
+            vector<package> index = pkgs.find(tik->info);
+            if(index != pkgs.end()) {
+                pkgs.remove(tik->info);
+            } else {
+                emit_warning("cannot end package since it was not begun", tik->line_num, tik->filename);
+            }
+            std::cout << "::" << tik->info << "\n";
+            break;
+        case token_type::package_scope:
+            package * scope = global.get_package(tik->info);
+            if(scope == nullptr) {
+                emit_warning("could not find the specified package. defaulting to global scope.", tik->line_num, tik->filename);
+                scope = &prepkg::global;
+            }
+            std::cout << ":" << tik->info << ":";
+            ++tik;
+            if(tik->tt == token_type::identifier) {
+                emit_error("package scope must be followed by an identifier", tik->line_num, tik->filename);
+                --tik;
+            } else {
+                node->expr(component().id(tt->info, scope), component());
+                node = &node->expr_tail();
+                
+            }
+            break;
+        case token_type::lparen:
+            node->expr(component(), component());
+            parens.push_back(node);
+            node = node->expr_head();
+            std::cout << "(";
+            break;
+        case token_type::rparen:
+            if(parens.empty()) {
+                emit_error("encountered ')' with no matching '('", tik->line_num, tik->filename)
+            } else {
+                node = parens.back();
+                parens.pop_back();
+                std::cout << ")";
+            }
+            break;
+        case token_type::newline:
+            if(parens.empty() && definition) {
+
+            }
+            std::cout << "\n";
+            break;
+        case token_type::none:
+            std::cout << "[[token_type::none]]";
+            break;
+        }
     }
-}
 
-int evaluate(component& arg) {
-    int iterations = 0;
-    while(evaluate_step(arg))
-        ++iterations;
-    return iterations;
-}
+    return 1;
 
 
+    return 1;
 }
+
+int evaluate_line(std::vector<token> line, int max_steps) {
+
+}
+
+}
+
+
+
+
+/*
+
+Lxy.xy(ba)
+
+L-x
+L-y
+e-e-x
+| y
+e-b
+a
+
+L-x
+L-y
+*^
+
+L-x
+L-y
+x^
+
+L-x
+L-y
+e^-x
+y
+
+L-x
+L-y
+e-e-x
+| y
+*^
+
+
+
+
+
+*/
+
