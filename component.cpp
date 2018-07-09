@@ -160,9 +160,18 @@ std::string component::to_string() const {
             }
             //else fallthrough
         default:
-            ret += "`";
-            ret += id_name();
-            ret += " ";
+            if(id_name()[id_name().size() - 1] == '\'') {
+                if(id_name()[1] == '\'') {
+                    ret += id_name();
+                } else {
+                    ret += "`";
+                    ret += id_name();
+                }
+            } else {
+                ret += "`";
+                ret += id_name();
+                ret += " ";
+            }
             break;
         }
     } else {
@@ -194,27 +203,60 @@ void package::add_value(std::string key, const component& to_add) {
 }
 
 const component * global_package::get_value(std::string key) {
-    try { //holding out for c++20 map::contains
-        return &values.at(key);
-    } catch(std::out_of_range) {
+    const component * ret = base.get_value(key);
+    if (ret == nullptr) {
         for(std::pair<const std::string,package>& p : packages) {
-            const component * ret = p.second.get_value(key);
+            ret = p.second.get_value(key);
             if(ret != nullptr) {
                 return ret;
             }
         }
+        return nullptr;
+    } else {
+        return ret;
     }
-    return nullptr;
 }
-void global_package::add_value(std::string key, const component& to_add) {
-    values[key] = to_add;
+
+const component * global_package::get_value(std::string component_key, std::vector<std::string> package_keys) {
+    const component * ret;
+    for(std::vector<std::string>::reverse_iterator pki = package_keys.rbegin(); pki != package_keys.rend(); ++pki) {
+        package * p = get_package(*pki);
+        if(p == nullptr) {
+            throw std::logic_error("attempted to access nonexistant package");
+        }
+        ret = p->get_value(component_key);
+        if(ret != nullptr)
+            return ret;
+    }
+
+    ret = base.get_value(component_key);
+    if (ret == nullptr) {
+        for(std::pair<const std::string,package>& p : packages) {
+            ret = p.second.get_value(component_key);
+            if(ret != nullptr) {
+                return ret;
+            }
+        }
+        return nullptr;
+    } else {
+        return ret;
+    }
+}
+
+
+void global_package::add_value(std::string key, const component& to_add) {        
+    base.add_value(key, to_add);
 }
 
 package * global_package::add_package(std::string key) {
+    if(key == "global")
+        return &base;
     return &packages[key];
 }
 
 package * global_package::get_package(std::string key) {
+    if(key == "global")
+        return &base;
     try {
         return &packages.at(key);
     } catch (std::out_of_range) {

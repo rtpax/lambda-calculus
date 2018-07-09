@@ -19,13 +19,12 @@ it spans multiple lines
 natural::
     0 := Lsz.z
     S := Lwyx.y(wyx)
-    # ...= S(#-1)
+    ; # ...= S(#-1) ; valid statement but not yet supported
 
-    ; 1 := Lsz.s(z)
-    ; 2 := Lsz.s(s(z))
-    ; 3 := Lsz.s(s(s(z)))
-    ; ...
-    ; n := Lsz.s(...s(z))
+    1 := S0
+    2 := S1
+    3 := S2
+    4 := S3
 
 
     `0? := Lx.x(TF)T
@@ -34,7 +33,7 @@ natural::
     ; `0?(n>0) = F
 
     `Phi := Lpz.z(S(pT))(pT)
-    P := Ln.n`Phi(Lz.z0(0))F
+    P := Ln.n`Phi(Lz.z00)F
 
     + := Lab.aSb
     * := Lab.ab
@@ -43,4 +42,13 @@ natural::
     `Successor := S
     `Predecessor := P
 
+0
+1
+2
+3
+4
+S
+4S4
+
 ::natural
+

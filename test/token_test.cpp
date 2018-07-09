@@ -41,9 +41,7 @@ int token_test() {
             std::cout << " ...= ";
             break;
         case token_type::identifier:
-            if(is_integer_string(tik.info)) {
-                std::cout << tik.info << " ";
-            } else if(tik.info.size() == 1) {
+            if((tik.info.size() == 1 || tik.info[1] == '\'') && tik.info[0] != 'L') {
                 std::cout << tik.info;
             } else {
                 std::cout << "`" << tik.info << " ";

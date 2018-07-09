@@ -1,4 +1,5 @@
-#include "./compile.h"
+#include "../component.h"
+#include <iostream>
 
 using namespace lambda;
 
@@ -6,33 +7,41 @@ using namespace lambda;
 int main() {
     component a,b,c,d,e,f,g,h,i,j,k,l,m,n,o,p,q,r,s,t,u,v,w,x,y,z;
 
-    global.add_value("S",
-        d.lambda(e.id("w"),
-            a.lambda(b.id("s"),
-                c.lambda(d.id("z"),
-                    e.expr(f.id("s"),
-                        g.expr(h.expr(i.id("w"),j.id("s")),k.id("z")))))));
-    
-    global.add_value("0",
+    d.lambda(e.id("w"),
         a.lambda(b.id("s"),
-            c.lambda(a.id("z"),
-                b.id("z"))));
+            c.lambda(d.id("z"),
+                e.expr(f.id("s"),
+                    g.expr(h.expr(i.id("w"),j.id("s")),k.id("z"))))));
+    while(d.simplify_step());
+    global.add_value("S",d);
     
-    global.add_value("1",
-        a.expr(b.id("S",&prepkg::global),
-            c.id("0",&prepkg::global)));
 
-    global.add_value("2",
-        a.expr(b.id("S",&prepkg::global),
-            c.id("1",&prepkg::global)));
+    a.lambda(b.id("s"),
+        c.lambda(a.id("z"),
+            b.id("z")));
+    while(a.simplify_step());
+    global.add_value("0", a);
+    
+    a.expr(b.id("S",&prepkg::global),
+        c.id("0",&prepkg::global));
+    while(a.simplify_step());
+    global.add_value("1", a);
 
-    global.add_value("3",
-        a.expr(b.id("S",&prepkg::global),
-            c.id("2",&prepkg::global)));
+    a.expr(b.id("S",&prepkg::global),
+        c.id("1",&prepkg::global));
+    while(a.simplify_step());
+    global.add_value("2", a);
 
-    global.add_value("4",
-        a.expr(b.id("S",&prepkg::global),
-            c.id("3",&prepkg::global)));
+    a.expr(b.id("S",&prepkg::global),
+        c.id("2",&prepkg::global));
+    while(a.simplify_step());
+    global.add_value("3", a);
+
+    a.expr(b.id("S",&prepkg::global),
+        c.id("3",&prepkg::global));
+    while(a.simplify_step());
+    global.add_value("4", a);
+
 
     a.lambda(
         b.id("x"),

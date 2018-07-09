@@ -43,7 +43,7 @@ namespace prepkg {
 
 class global_package {
 private:
-    std::map<std::string, component> values;
+    package base;
     std::map<std::string, package> packages;
     std::vector<std::string> open;
 public:
@@ -51,6 +51,7 @@ public:
     package * get_package(std::string key);
 
     const component * get_value(std::string key);
+    const component * get_value(std::string component_key, std::vector<std::string> package_keys);
     void add_value(std::string key, const component& to_add);
 };
 
@@ -68,38 +69,57 @@ private:
     nullable<component> _tail;
 
 public:
+    component& copy(const component& in) {
+        nullable<component> head = in._head;//these are necessary to prevent loss of data if in is a child or this
+        nullable<component> tail = in._tail;
+
+        _parent = nullptr;
+        _scope = in._scope;
+        _name = in._name;
+        _head = std::move(head);
+        _tail = std::move(tail);
+        if(!_head.null()) {
+            _head.get().parent() = this;
+        }
+        if(!_tail.null()) {
+            _head.get().parent() = this;
+        }
+        return *this;
+    }
+    component& steal(component&& in) {
+        nullable<component> head = in._head;//these are necessary to prevent loss of data if in is a child or this
+        nullable<component> tail = in._tail;
+
+        _parent = nullptr;
+        _scope = std::move(in._scope);
+        _name = std::move(in._name);
+        _head = std::move(head);
+        _tail = std::move(tail);
+        if(!_head.null()) {
+            _head.get().parent() = this;
+        }
+        if(!_tail.null()) {
+            _head.get().parent() = this;
+        }
+
+        assert(is_deep_alloc());
+        return *this;
+    }
     component() {
         _parent = nullptr;
         _scope = nullptr;
     }
-    component(const component& copy) {
-        _parent = nullptr;
-        _scope = copy._scope;
-        _name = copy._name;
-        _head = copy._head;
-        _tail = copy._tail;
-        if(!_head.null()) {
-            _head.get().parent() = this;
-        }
-        if(!_tail.null()) {
-            _head.get().parent() = this;
-        }
+    component(const component& in) {
+        copy(in);
     }
-    component(component&& steal) {
-        nullable<component> head = std::move(steal._head);
-        nullable<component> tail = std::move(steal._tail);
-
-        _parent = nullptr;
-        _scope = std::move(copy._scope);
-        _name = std::move(copy._name);
-        _head = head;
-        _tail = tail;
-        if(!_head.null()) {
-            _head.get().parent() = this;
-        }
-        if(!_tail.null()) {
-            _head.get().parent() = this;
-        }
+    component(component&& in) {
+        steal(std::move(in));
+    }
+    component& operator=(const component& in) { 
+        return copy(in);
+    }
+    component& operator=(component&& in) {
+        return steal(std::move(in));
     }
 
     component& copy_preserve_parent(const component& copy) {
@@ -112,6 +132,7 @@ public:
         component * temp_parent = parent();
         *this = std::move(steal);
         parent() = temp_parent;
+        assert(is_deep_alloc());
         return *this;
     }
 
@@ -226,37 +247,71 @@ public:
         return _tail.get();
     }
 
+    component& clear() {
+        _head.nullify();
+        _tail.nullify();
+        _scope = nullptr;
+        _name.nullify();
+        
+        return *this;
+    }
     component& id(std::string name, package * pkg = &prepkg::bound) {
         _head.nullify();
         _tail.nullify();
         _scope = pkg;
         _name = name;
-        _parent = nullptr;
 
         return *this;
     }
-    component& lambda(component arg, component out) {
+    component& lambda(const component& arg, const component& out) {
+        return lambda(std::move(component(arg)), std::move(component(out)));
+    }
+    component& lambda(component&& arg, const component& out) {
+        return lambda(std::move(arg), std::move(component(out)));
+    }
+    component& lambda(const component& arg, component&& out) {
+        return lambda(std::move(component(arg)), std::move(out));
+    }
+    component& lambda(component&& arg, component&& out) {
+        component new_arg = std::move(arg);//these are necessary to prevent loss of data if arg or out is a child or this
+        component new_out = std::move(out);
+
+        //TODO verify that stealing a child works
         _scope = &prepkg::lambda;
-        lambda_arg(arg);
-        lambda_out(out);
+
+        lambda_arg(std::move(new_arg));
+        lambda_out(std::move(new_out));
         _name.nullify();
 
         lambda_arg().parent() = this;
         lambda_out().parent() = this;
-        _parent = nullptr;
 
+        assert(is_deep_alloc());
         return *this;
     }
-    component& expr(component head, component tail) {
+    component& expr(const component& head, const component& tail) {
+        return expr(std::move(component(head)), std::move(component(tail)));
+    }
+    component& expr(component&& head, const component& tail) {
+        return expr(std::move(head), std::move(component(tail)));
+    }
+    component& expr(const component& head, component&& tail) {
+        return expr(std::move(component(head)), std::move(tail));
+    }
+    component& expr(component&& head, component&& tail) {
+        component new_head = std::move(head);//these are necessary to prevent loss of data if head or tail is a child or this
+        component new_tail = std::move(tail);
+
         _scope = &prepkg::expr;
-        expr_head(head);
-        expr_tail(tail);
+        
+        expr_head(std::move(new_head));
+        expr_tail(std::move(new_tail));
         _name.nullify();
 
         expr_head().parent() = this;
         expr_tail().parent() = this;
-        _parent = nullptr;
 
+        assert(is_deep_alloc());
         return *this;
     }
 
@@ -272,18 +327,42 @@ public:
         } else if(is_id()) {
             return 1;
         } else {
-            return false;
+            return 0;
+        }
+    }
+    bool is_deep_alloc() {
+        if(is_expr()) {
+            if(_head.null() || _tail.null())
+                return 0;
+            return expr_head().is_deep_alloc() && expr_tail().is_deep_alloc();
+        } else if(is_lambda()) {
+            if(_head.null() || _tail.null())
+                return 0;
+            return lambda_arg().is_deep_alloc() && lambda_out().is_deep_alloc();
+        } else if(is_id()) {
+            return 1;
+        } else {
+            return 1;
         }
     }
 
-    component& append(component to_add) {
-        if(is_init) {
+    component& append(const component& to_add) {
+        if(is_init()) {
             expr(component(std::move(*this)), to_add);
         } else {
             copy_preserve_parent(to_add);
         }
-        *this;
+        return *this;
     }
+    component& append(component&& to_add) {
+        if(is_init()) {
+            expr(component(std::move(*this)), std::move(to_add));
+        } else {
+            copy_preserve_parent(std::move(to_add));
+        }
+        return *this;
+    }
+
     
     int evaluate_step();
     int evaluate();
@@ -303,25 +382,17 @@ public:
         }
         return base_name + "@OVERFLOW";
     }
-    static std::string alt_name(std::string name, unsigned rev) {
-        if(rev == 0) {
-            return name;
-        } else {
-            return name + "@" + std::to_string(rev);
-        }
+    static std::string alt_name(std::string base_name, unsigned rev) {
+        std::string ret = base_name;
+        for(unsigned i = 0; i < rev; ++i)
+            ret += "'";
+        return ret;
     }
     static std::string base_name(std::string name) {
-        return name.substr(0, name.find_first_of('@'));
+        return name.substr(0, name.find_first_of('\''));
     }
     static unsigned base_rev(std::string name) {
-        try {
-            std::string::size_type index = name.find_first_of('@');
-            if(index == name.size() || index == name.size() - 1)
-                return 0;
-            return stoul(name.substr(name.find_first_of('@') + 1));
-        } catch (std::exception) {
-            throw std::logic_error("alt name invalid");
-        }
+        return name.size() - name.find_first_of('\'');
     }
     bool bound_in_argument(const std::string& check) const {
         if(is_lambda()) {

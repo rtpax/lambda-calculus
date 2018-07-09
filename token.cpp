@@ -146,6 +146,7 @@ std::vector<token> tokenize_line(std::string line, int line_num, std::string fil
 
     for(; i < line.size(); ++i) {
         token id;
+        bool altname;
         switch(line[i]) {
         case 'L':
             out.push_back(token{token_type::lambda});
@@ -174,13 +175,24 @@ std::vector<token> tokenize_line(std::string line, int line_num, std::string fil
             break;
         case '`':
             id = {token_type::identifier, "", line_num, filename};
+            altname = 0;
             for(i = i + 1; i < line.size() && !is_name_break(line[i]); ++i) {
-                id.info += line[i];
+                if(line[i] == '\'') {
+                    altname = 1;
+                } else {
+                    if(altname) {
+                        break;
+                    }
+                    id.info += line[i];
+                }
             }
             --i;
             if(id.info.size() == 0) {
                 emit_warning("ignoring zero length name", line_num, filename);
             } else {
+                if(id.info[0] == '\'') {
+                    emit_warning("'\\'' without base name", line_num, filename);
+                }
                 out.push_back(id);
             }
             break;
@@ -210,16 +222,15 @@ std::vector<token> tokenize_line(std::string line, int line_num, std::string fil
             }
             break;
         default:
-            if(is_num(line[i])) {
+            if(!is_whitespace(line[i])) {
                 id = {token_type::identifier, "", line_num, filename};
-                for(; i < line.size() && is_num(line[i]); ++i) {
+                id.info += line[i];
+                ++i;
+                for(; i < line.size() && line[i] == '\'' ; ++i) {
                     id.info += line[i];
                 }
                 --i;
                 out.push_back(id);
-            }
-            else if(!is_whitespace(line[i])) {
-                out.push_back(token{token_type::identifier, std::string("") + line[i], line_num, filename});
             }
             break;
         }

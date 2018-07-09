@@ -6,7 +6,7 @@
 
 namespace lambda {
 
-void load_file(std::string filename);
+int load_file(std::string filename);
 
 int evaluate_line(std::vector<token> line, int max_steps = 1024);
 
