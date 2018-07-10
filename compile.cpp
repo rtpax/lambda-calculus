@@ -27,13 +27,13 @@ int load_file(std::string filename) {
         std::vector<std::string>::iterator index;
         package * scope;
         component* oldnode = nullptr;
-        bool bound;
+        bool bound, empty;
         switch(tik->tt) {
         case token_type::lambda:
             std::cout << "L";
             parens.push_back(node);
-
-            node->append(component());
+            node = new component();
+            oldnode = node;
 
             ++tik;
             if(tik->tt == token_type::dot || tik->tt == token_type::lparen) {
@@ -57,10 +57,11 @@ int load_file(std::string filename) {
                 }
                 ++tik;
             }
+            node = oldnode;
             if(tik == tok.end()) {
                 emit_error("program ended before statement completion", tok.back().line_num, tok.back().filename);
             } if(tik->tt == token_type::dot) {
-                parens.pop_back();
+                parens.push_back(nullptr); //indicates that previous parens.back() is recovery from lambda
                 std::cout << ".";
             } else /*lparen*/ {
                 std::cout << "(";
@@ -103,11 +104,12 @@ int load_file(std::string filename) {
             } else {
                 std::cout << "`" << tik->info << " ";
             }
-            bound = node->bound_in_ancestor(tik->info);
+            bound = node->is_lambda() ? node->lambda_has_arg(tik->info) : 0;
             for(component * par : parens) { 
                 if(bound)
                     break;
-                bound = par->bound_in_ancestor(tik->info);
+                if(par != nullptr)
+                    bound = par->is_lambda() ? par->lambda_has_arg(tik->info) : 0;
             }
             if(bound) {
                 node->append(component().id(tik->info));
@@ -167,18 +169,51 @@ int load_file(std::string filename) {
             if(parens.empty()) {
                 emit_error("encountered ')' with no matching '('", tik->line_num, tik->filename);
             } else {
+                if(parens.back() == nullptr) {
+                    parens.pop_back();
+                    oldnode = node;
+                    node = parens.back();
+                    parens.pop_back();
+                    node->append(std::move(*oldnode));
+                    delete oldnode;
+                }
+                if(parens.empty()) {
+                    emit_error("encountered ')' with no matching '('", tik->line_num, tik->filename);
+                }
                 oldnode = node;
                 node = parens.back();
                 parens.pop_back();
-
-                node->append(std::move(*oldnode));
+                if(oldnode->is_lambda() && !node->is_init()) {
+                    node->expr(std::move(*oldnode), component());
+                } else {
+                    node->append(std::move(*oldnode));
+                }
                 delete oldnode;
 
                 std::cout << ")";
             }
             break;
         case token_type::newline:
-            if(parens.empty()) {
+            empty = 1;
+            for(std::vector<component*>::reverse_iterator pri = parens.rbegin(); pri != parens.rend(); ++pri) {
+                if(*pri == nullptr) {
+                    ++pri;
+                    assert(pri != parens.rend());
+                } else {
+                    empty = 0;
+                    break;
+                }
+            }
+            if(empty) {
+                while(!parens.empty()) {
+                    assert(parens.size() >= 2);
+                    parens.pop_back();
+                    oldnode = node;
+                    node = parens.back();
+                    parens.pop_back();
+                    node->append(std::move(*oldnode));
+                    delete oldnode;
+                }
                 if(!node->is_init()) {
                     break;
                 }
@@ -187,16 +222,20 @@ int load_file(std::string filename) {
                     emit_error("incomplete statement", tik->line_num, tik->filename);
                     break;
                 }
+                int max_iter = 10000;
+                bool stepped = 1;
+                while(stepped && max_iter > 0) {
+                    //std::cout << "\n    " << node->to_string();
+                    stepped = node->evaluate_step();
+                    if(!stepped)
+                        stepped = node->simplify_step();
+                    --max_iter;
+                }
+                std::cout << "\n    " << node->to_string();
+                if(max_iter == 0) {
+                    emit_warning("stopped evaluating lambda after 10000 iterations",tik->line_num,tik->filename);
+                }
                 if(definition.null()) {
-                    int max_iter = 100;
-                    bool stepped = 1;
-                    while(stepped && max_iter > 0) {
-                        std::cout << "\n    " << node->to_string();
-                        stepped = node->evaluate_step();
-                        if(!stepped)
-                            stepped = node->simplify_step();
-                        --max_iter;
-                    }
                     node->clear();
                 } else {
                     for(std::string p : pkgs) {

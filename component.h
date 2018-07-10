@@ -348,7 +348,12 @@ public:
 
     component& append(const component& to_add) {
         if(is_init()) {
-            expr(component(std::move(*this)), to_add);
+            if (is_expr() && !expr_tail().is_init())
+                expr_tail(to_add);
+            else if (is_lambda())
+                lambda_out().append(to_add);
+            else
+                expr(std::move(*this), to_add);
         } else {
             copy_preserve_parent(to_add);
         }
@@ -356,7 +361,12 @@ public:
     }
     component& append(component&& to_add) {
         if(is_init()) {
-            expr(component(std::move(*this)), std::move(to_add));
+            if (is_expr() && !expr_tail().is_init())
+                expr_tail(std::move(to_add));
+            else if (is_lambda())
+                lambda_out().append(std::move(to_add));
+            else
+                expr(std::move(*this), std::move(to_add));
         } else {
             copy_preserve_parent(std::move(to_add));
         }
@@ -442,6 +452,13 @@ public:
             node = node->parent();
         }
         return 0;
+    }
+    bool lambda_has_arg(std::string check) {
+        if(!is_lambda())
+            return false;
+        if(lambda_arg().id_name() == check)
+            return true;
+        return lambda_out().lambda_has_arg(check);
     }
 
 
