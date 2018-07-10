@@ -167,7 +167,43 @@ std::vector<token> tokenize_line(std::string line, int line_num, std::string fil
                 out.push_back(token{token_type::define, "", line_num, filename});
                 ++i;
             } else {
-                //package scope
+                id = token{token_type::package_scope, "", line_num, filename};
+                bool has_warned = false;
+                while(i < line.size() && !is_whitespace(line[i])) {
+                    ++i;
+                    if(line[i] == ':') {
+                        out.push_back(id);
+                        ++i;
+                        break;
+                    }
+                    else if (is_valid_pkg_char(line[i])) {
+                        id.info += line[i];
+                    } else if (!has_warned) {
+                        emit_warning("ignoring invalid characters in package name", line_num, filename);
+                        has_warned = true;
+                    }
+                }
+                if(i == line.size() && line[i] != ':') {
+                    emit_warning("reached end of file without completing package name", line_num, filename);
+                }
+                --i;
+            }
+            break;
+        case '=':
+            if(line[i + 1] == '>') {
+                out.push_back(token{token_type::lazy_define, "", line_num, filename});
+                ++i;
+            } else {
+                if(!is_whitespace(line[i])) {
+                    id = {token_type::identifier, "", line_num, filename};
+                    id.info += line[i];
+                    ++i;
+                    for(; i < line.size() && line[i] == '\'' ; ++i) {
+                        id.info += line[i];
+                    }
+                    --i;
+                    out.push_back(id);
+                }
             }
             break;
         case '#':
@@ -183,8 +219,8 @@ std::vector<token> tokenize_line(std::string line, int line_num, std::string fil
                     if(altname) {
                         break;
                     }
-                    id.info += line[i];
                 }
+                id.info += line[i];
             }
             --i;
             if(id.info.size() == 0) {

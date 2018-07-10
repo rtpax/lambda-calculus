@@ -1,54 +1,156 @@
 boolean::
-
     T := Lxy.x
     F := Lxy.y
     
     & := Lxy.xyF
     | := Lxy.xTy
-    ~ := Lxy.xFT
-    
+    ~ := Lx.xFT
 ::boolean
-
-;::  comment begin
-
-this is a block comment
-it spans multiple lines
-
-        comment end   ::;
-
 natural::
     0 := Lsz.z
-    S := Lwyx.y(wyx)
+    S := Lwsz.s(wsz)
     ; # ...= S(#-1) ; valid statement but not yet supported
 
     1 := S0
     2 := S1
     3 := S2
     4 := S3
+    5 := S4
+    6 := S5
+    7 := S6
+    8 := S7
+    9 := S8
+    `10 := S9
+    `11 := S`10
+    `12 := S`11
+    `13 := S`12
+    `14 := S`13
+    `15 := S`14
+    `16 := S`15
+    `17 := S`16
+    `18 := S`17
+    `19 := S`18
+    `20 := S`19
 
-
-    `0? := Lx.x(TF)T
-    ; `0?(0) = (Lx.x(TF)T)(Lsz.z) = (Lsz.z)(TF)T = T
-    ; `0?(1) = (Lx.x(TF)T)(Lsz.s(z)) = (Lsz.s(z))(TF)T = TFT = F
-    ; `0?(n>0) = F
+    Z := Lx.x(TF)T
 
     `Phi := Lpz.z(S(pT))(pT)
     P := Ln.n`Phi(Lz.z00)F
 
+    - := Lab.bPa
     + := Lab.aSb
-    * := Lab.ab
+    * := Lab.a(bS)0
     ^ := Lab.b(*a)1
 
-    `Successor := S
-    `Predecessor := P
+    `>= := Lxy.Z(xPy)
+    `<= := Lxy.Z(yPx)
+    = := Lxy.&(`>= xy)(`<= xy)
+    < := Lxy.~(`>= xy)
+    > := Lxy.~(`<= xy)
 
-0
-1
-2
-3
-4
-S
-4S4
+    `fact := LN`gen.ZN1(*N(`gen(-N1)`gen))
+    `fact' := L`gen`N.ZN1(*N(`gen`gen(-N1)))
+
+    ! => Ln.`fact`n`fact
+    !' => Ln.`fact'`fact'`n
+
+    `fib' := LGnpc.Zcp(GGp(+np)(-c1))
+    `fib => Lc.`fib'`fib'01c
+
+
+
+
+    `fib`7
 
 ::natural
 
+recursion::
+    Y := Lx.xx
+::recursion
+
+integer::
+
+    0' := :natural:0
+    1' := :natural:1
+    2' := :natural:2
+    3' := :natural:3
+    4' := :natural:4
+    5' := :natural:5
+    6' := :natural:6
+    S' := :natural:S
+    P' := :natural:P
+    Z' := :natural:Z
+
+    -' := :natural:-
+    +' := :natural:+
+    *' := :natural:*
+    ^' := :natural:^
+
+    `>=' := :natural:`>=
+    `<=' := :natural:`<=
+    =' := :natural:=
+    <' := :natural:<
+    >' := :natural:>
+
+    0 := Lz.z0'0'
+
+    `pos? := La.~(Z'(aF))
+    `neg? := La.~(Z'(aT))
+    `nat? := La.Z'(aT)
+
+    S := La.`nat?`a(Lz.z0'(S'(aF)))(Lz.z(P'(aT))0')
+    P := La.`pos?`a(Lz.z0'(P'(aF)))(Lz.z(S'(aT))0')
+
+    + := Lab.aFS(aTPb)
+    * := Lab.aF(bS)(aT(bP)0)
+    - := La.Lz.z(aF)(aT) ;additive inverse -- not subtraction
+
+    `>= := (Lab.`nat?`a
+            (`nat?`b(`>='(aF)(bF))(T))
+            (`nat?`b(F)(`<='(aT)(bT))))
+
+    1 := S0
+    2 := S1
+    3 := S2
+    4 := S3
+    5 := S4
+    6 := S5
+    7 := S6
+    8 := S7
+    9 := S8
+    `10 := S9
+    `11 := S`10
+    `12 := S`11
+    `13 := S`12
+    `14 := S`13
+    `15 := S`14
+    `16 := S`15
+    `17 := S`16
+    `18 := S`17
+    `19 := S`18
+    `20 := S`19
+
+    `-1 := P0
+    `-2 := P`-1
+    `-3 := P`-2
+    `-4 := P`-3
+    `-5 := P`-4
+    `-6 := P`-5
+    `-7 := P`-6
+    `-8 := P`-7
+    `-9 := P`-8
+    `-10 := P`-9
+    `-11 := P`-10
+    `-12 := P`-11
+    `-13 := P`-12
+    `-14 := P`-13
+    `-15 := P`-14
+    `-16 := P`-15
+    `-17 := P`-16
+    `-18 := P`-17
+    `-19 := P`-18
+    `-20 := P`-19
+
++`10(-`10)
+
+::integer

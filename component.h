@@ -375,10 +375,10 @@ public:
 
     
     int evaluate_step();
-    int evaluate();
+    int evaluate(int timeout);
     int evaluate_expression();
     int simplify_step();
-    int simplify();
+    int simplify(int timeout);
 
     int replace_ids(std::string replace_name, const component& replace, package * replace_scope = &prepkg::bound);
 

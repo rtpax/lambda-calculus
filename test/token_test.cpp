@@ -37,6 +37,9 @@ int token_test() {
         case token_type::define:
             std::cout << " := ";
             break;
+        case token_type::lazy_define:
+            std::cout << " = ";
+            break;
         case token_type::inductive_definition:
             std::cout << " ...= ";
             break;

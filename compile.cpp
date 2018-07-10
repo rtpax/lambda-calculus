@@ -3,19 +3,26 @@
 #include <fstream>
 #include <algorithm>
 
+
 namespace lambda {
 
+
 int load_file(std::string filename) {
+    static const int TIMEOUT = 100000;
+    
     std::ifstream ifs(filename, std::ifstream::in);
     if(!ifs.is_open()) {
         return 0;
     }
 
-    std::vector<token> tok = tokenize(ifs, "filename");
-
+    std::vector<token> tok = tokenize(ifs, filename);
+    if(!tok.empty())
+        tok.push_back(token{token_type::newline,"",tok.back().tt == token_type::newline ? tok.back().line_num + 1 : tok.back().line_num,filename});
+ 
     ifs.close();
 
     nullable<std::string> definition;
+    bool lazy_def = true;
 
     component* node = new component();
 
@@ -31,9 +38,14 @@ int load_file(std::string filename) {
         switch(tik->tt) {
         case token_type::lambda:
             std::cout << "L";
-            parens.push_back(node);
-            node = new component();
+            if(node->is_init() && !node->is_lambda()) {
+                parens.push_back(node);
+                node = new component();
+            }
             oldnode = node;
+            while (node->is_lambda()) {
+                node = &node->lambda_out();
+            }
 
             ++tik;
             if(tik->tt == token_type::dot || tik->tt == token_type::lparen) {
@@ -61,9 +73,9 @@ int load_file(std::string filename) {
             if(tik == tok.end()) {
                 emit_error("program ended before statement completion", tok.back().line_num, tok.back().filename);
             } if(tik->tt == token_type::dot) {
-                parens.push_back(nullptr); //indicates that previous parens.back() is recovery from lambda
                 std::cout << ".";
             } else /*lparen*/ {
+                parens.push_back(new component());
                 std::cout << "(";
             }
             break;
@@ -71,6 +83,7 @@ int load_file(std::string filename) {
             emit_error("stray '.' in program", tik->line_num, tik->filename);
             break;
         case token_type::define:
+        case token_type::lazy_define:
             if(!parens.empty()) {
                 emit_error("cannot have definition inside parentheses", tik->line_num, tik->filename);
                 break;
@@ -81,7 +94,12 @@ int load_file(std::string filename) {
             }
             if(node->is_id() && node->parent() == nullptr && node->scope() == &prepkg::global) {
                 definition = node->id_name();
-                *node = component();
+                if(tik->tt == token_type::define) {
+                    lazy_def = false;
+                } else {
+                    lazy_def = true;
+                }    
+                node->clear();
             } else {
                 if(!node->is_init()) {
                     emit_error("definition has no target", tik->line_num, tik->filename);
@@ -89,7 +107,11 @@ int load_file(std::string filename) {
                     emit_error("only identifiers can be defined", tik->line_num, tik->filename);
                 }
             }
-            std::cout << " := ";
+            if(tik->tt == token_type::define) {
+                std::cout << " := ";
+            } else {
+                std::cout << " = ";
+            }
             break;
         case token_type::inductive_definition:
             emit_error("inductive definitons not supported", tik->line_num, tik->filename);
@@ -108,8 +130,7 @@ int load_file(std::string filename) {
             for(component * par : parens) { 
                 if(bound)
                     break;
-                if(par != nullptr)
-                    bound = par->is_lambda() ? par->lambda_has_arg(tik->info) : 0;
+                bound = par->is_lambda() ? par->lambda_has_arg(tik->info) : 0;
             }
             if(bound) {
                 node->append(component().id(tik->info));
@@ -152,12 +173,23 @@ int load_file(std::string filename) {
             }
             std::cout << ":" << tik->info << ":";
             ++tik;
-            if(tik->tt == token_type::identifier) {
+            if(tik->tt != token_type::identifier) {
                 emit_error("package scope must be followed by an identifier", tik->line_num, tik->filename);
                 --tik;
             } else {
-                node->expr(component().id(tik->info, scope), component());
-                node = &node->expr_tail();    
+                const component * value = scope ? scope->get_value(tik->info) : global.get_value(tik->info);
+                if(value == nullptr) {
+                    emit_warning("could not find variable in the specified scope", tik->line_num, tik->filename);
+                }
+                if(tik->info.size() == 0) {
+                    emit_error("zero length identifier", tik->line_num, tik->filename);
+                    break;
+                } else if((tik->info.size() == 1 || tik->info[1] == '\'') && tik->info[0] != 'L') {
+                    std::cout << tik->info;
+                } else {
+                    std::cout << "`" << tik->info << " ";
+                }
+                node->append(component().id(tik->info, scope ?: &prepkg::global));
             }
             break;
         case token_type::lparen:
@@ -169,17 +201,6 @@ int load_file(std::string filename) {
             if(parens.empty()) {
                 emit_error("encountered ')' with no matching '('", tik->line_num, tik->filename);
             } else {
-                if(parens.back() == nullptr) {
-                    parens.pop_back();
-                    oldnode = node;
-                    node = parens.back();
-                    parens.pop_back();
-                    node->append(std::move(*oldnode));
-                    delete oldnode;
-                }
-                if(parens.empty()) {
-                    emit_error("encountered ')' with no matching '('", tik->line_num, tik->filename);
-                }
                 oldnode = node;
                 node = parens.back();
                 parens.pop_back();
@@ -195,19 +216,13 @@ int load_file(std::string filename) {
             break;
         case token_type::newline:
             empty = 1;
-            for(std::vector<component*>::reverse_iterator pri = parens.rbegin(); pri != parens.rend(); ++pri) {
-                if(*pri == nullptr) {
-                    ++pri;
-                    assert(pri != parens.rend());
-                } else {
-                    empty = 0;
+            for(component * check : parens) {
+                empty = check->is_lambda();
+                if(!empty)
                     break;
-                }
             }
             if(empty) {
                 while(!parens.empty()) {
-                    assert(parens.size() >= 2);
-                    parens.pop_back();
                     oldnode = node;
                     node = parens.back();
                     parens.pop_back();
@@ -217,42 +232,51 @@ int load_file(std::string filename) {
                 if(!node->is_init()) {
                     break;
                 }
-                node = node->base_parent();
                 if(!node->is_deep_init()) {
                     emit_error("incomplete statement", tik->line_num, tik->filename);
                     break;
                 }
-                int max_iter = 10000;
-                bool stepped = 1;
-                while(stepped && max_iter > 0) {
-                    //std::cout << "\n    " << node->to_string();
-                    stepped = node->evaluate_step();
-                    if(!stepped)
-                        stepped = node->simplify_step();
-                    --max_iter;
+                int timeout = node->evaluate(TIMEOUT);
+                std::cout << "\n    " << node->to_string() << "[" << (TIMEOUT - timeout) << "]";
+                if(timeout == 0) {
+                    emit_warning("stopped evaluating lambda after timeout",tik->line_num,tik->filename);
                 }
-                std::cout << "\n    " << node->to_string();
-                if(max_iter == 0) {
-                    emit_warning("stopped evaluating lambda after 10000 iterations",tik->line_num,tik->filename);
+
+                if(definition.null() || !lazy_def) {
+                    if(timeout != 0) {
+                        timeout = node->simplify(TIMEOUT);
+                        std::cout << "\n    " << node->to_string() << "[" << (TIMEOUT - timeout) << "]";
+                        if(timeout == 0) {
+                            emit_warning("stopped evaluating lambda after timeout",tik->line_num,tik->filename);
+                        }
+                    }
                 }
-                if(definition.null()) {
-                    node->clear();
-                } else {
-                    for(std::string p : pkgs) {
+                if(!definition.null()) {
+                    for (std::string p : pkgs) {
+                        if (global.get_package(p)->get_value(definition) != nullptr) {
+                            emit_warning("redefining variable within package", tik->line_num, tik->filename);
+                        }
                         global.get_package(p)->add_value(definition, *node);
-                        node->clear();
+                    }
+                    if (pkgs.empty()) {
+                        if (global.get_value(definition) != nullptr) {
+                            emit_warning("redefining variable in global space", tik->line_num, tik->filename);
+                        }
+                        global.add_value(definition, *node);
                     }
                     definition.nullify();
                 }
+                node->clear();
             } //else ignore
             std::cout << "\n";
             break;
         case token_type::none:
             emit_error("unrecognized token", tik->line_num, tik->filename);
-            std::cout << "[[token_type::none]]";
             break;
         }
     }
+    if(!tok.empty() && !parens.empty())
+        emit_warning("program ended with incomplete statement", tok.back().line_num, filename);
 
 
     return 1;
@@ -270,3 +294,6 @@ using namespace lambda;
 int main() {
     load_file("test/test.lc");
 }
+
+
+

@@ -10,6 +10,7 @@ enum class token_type {
     lambda,
     dot,
     define,
+    lazy_define,
     inductive_definition,
     identifier,
     file,

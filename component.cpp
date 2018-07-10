@@ -25,6 +25,7 @@ int component::replace_ids(std::string replace_name, const component& replace, p
 }
 
 int component::evaluate_expression() {
+    int ret = 0;
     if(expr_head().is_id() && expr_head().scope() != &prepkg::bound) {
         const component * id_value = nullptr;
         if(expr_head().scope() == &prepkg::global) {
@@ -34,6 +35,7 @@ int component::evaluate_expression() {
         }
         if(id_value != nullptr) {
             expr_head().copy_preserve_parent(*id_value);
+            ret = 1;
         } else {
             return 0;
         }
@@ -59,7 +61,7 @@ int component::evaluate_expression() {
         copy_preserve_parent(expr_head().lambda_out());
         return 1;
     }
-    return 0;
+    return ret;
 }
 
 int component::evaluate_step() {
@@ -67,15 +69,14 @@ int component::evaluate_step() {
         if(expr_head().evaluate_step()) {
             return 1;
         } else {
-            if(expr_head().is_lambda()) {
+            if(expr_head().is_lambda() || expr_head().is_id()) {
                 return evaluate_expression();
-            } else if (expr_head().is_id()){
-                return 0;
             } else {
                 return 0;
             }
         }
-    } else if (is_lambda()) {
+    }
+    if (is_lambda()) {
         return 0;
     } else if (scope() == &prepkg::global) {
         return 0;
@@ -87,15 +88,19 @@ int component::evaluate_step() {
 }
 
 int component::simplify_step() {
+    if(evaluate_step()) {
+        return 1;
+    }
+
     if (is_expr()) {
+        if(expr_head().is_lambda() || expr_head().is_id()) {
+            if(evaluate_expression())
+                return 1;
+        }
         if(expr_head().simplify_step()) {
             return 1;
         } else {
-            if(expr_head().is_lambda()) {
-                return evaluate_expression();
-            } else {
-                return expr_tail().simplify_step();
-            }
+            return expr_tail().simplify_step();
         }
     } else if (is_lambda()) {
         return lambda_out().simplify_step();
@@ -107,7 +112,7 @@ int component::simplify_step() {
             copy_preserve_parent(*value);
             return 1;
         }
-    } else if (scope() != &prepkg::bound) {
+    } else if (scope() == &prepkg::bound) {
         return 0;
     } else {
         const component * value = scope()->get_value(id_name());
@@ -118,6 +123,26 @@ int component::simplify_step() {
             return 1;
         }
     }
+}
+
+int component::evaluate(int timeout) {
+    while(timeout > 0) {
+        //std::cout << "\n     " << to_string();
+        --timeout;
+        if(!evaluate_step())
+            break;
+    }
+    return timeout;
+}
+
+int component::simplify(int timeout) {
+    while(timeout > 0) {
+        //std::cout << "\n     " << to_string();
+        --timeout;
+        if(!simplify_step())
+            break;
+    }
+    return timeout;
 }
 
 std::string component::to_string() const {
@@ -150,7 +175,7 @@ std::string component::to_string() const {
             ret += expr_tail().to_string();
         }
     } else if (is_id()) {
-        switch(id_name().size()) {
+        switch(base_name(id_name()).size()) {
         case 0:
             throw std::logic_error("identifier has name of length 0");
         case 1:
@@ -161,7 +186,7 @@ std::string component::to_string() const {
             //else fallthrough
         default:
             if(id_name()[id_name().size() - 1] == '\'') {
-                if(id_name()[1] == '\'') {
+                if(id_name()[1] == '\'' && id_name()[0] != 'L') {
                     ret += id_name();
                 } else {
                     ret += "`";
@@ -265,29 +290,5 @@ package * global_package::get_package(std::string key) {
 }
 
 }
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
 
 
