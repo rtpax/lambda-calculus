@@ -127,7 +127,7 @@ int component::simplify_step() {
 
 int component::evaluate(int timeout) {
     while(timeout > 0) {
-        //std::cout << "\n     " << to_string();
+        // std::cout << "\n     " << to_string();
         --timeout;
         if(!evaluate_step())
             break;
@@ -137,7 +137,7 @@ int component::evaluate(int timeout) {
 
 int component::simplify(int timeout) {
     while(timeout > 0) {
-        //std::cout << "\n     " << to_string();
+        // std::cout << "\n     " << to_string();
         --timeout;
         if(!simplify_step())
             break;
@@ -151,13 +151,16 @@ std::string component::to_string() const {
     if (is_lambda()) {
         const component * node = this;
         ret += "L";
+        assert(lambda_arg().is_id());
         ret += lambda_arg().to_string();
         node = &lambda_out();
         while(node->is_lambda()) {
+            assert(node->lambda_arg().is_id());
             ret += node->lambda_arg().to_string();
             node = &node->lambda_out();
         }
         ret += ".";
+        assert(node->is_init());
         ret += node->to_string();
     } else if (is_expr()) {
         if(expr_head().is_lambda()) {
@@ -175,18 +178,32 @@ std::string component::to_string() const {
             ret += expr_tail().to_string();
         }
     } else if (is_id()) {
+#ifndef NDEBUG
+        bool prime = false;
+        for(size_t i = 0; i < id_name().size(); ++i) {
+            assert(!is_name_break(id_name().at(i)));
+            assert(id_name().at(i) >= '!');//not a control character
+            assert(id_name().at(i) != '.');
+            assert(id_name().at(i) != ')');
+            assert(id_name().at(i) != 'L');
+            if(id_name().at(i) == '\'')
+                prime = true;
+            if(prime)
+                assert(id_name().at(i) == '\'');
+        }
+#endif
         switch(base_name(id_name()).size()) {
         case 0:
             throw std::logic_error("identifier has name of length 0");
         case 1:
-            if(id_name()[0] != 'L') {
+            if(id_name().at(0) != 'L') {
                 ret += id_name();
                 break;
             }
             //else fallthrough
         default:
-            if(id_name()[id_name().size() - 1] == '\'') {
-                if(id_name()[1] == '\'' && id_name()[0] != 'L') {
+            if(id_name().at(id_name().size() - 1) == '\'') {
+                if(id_name().at(1) == '\'' && id_name().at(0) != 'L') {
                     ret += id_name();
                 } else {
                     ret += "`";
@@ -203,12 +220,40 @@ std::string component::to_string() const {
         throw std::logic_error("component not a lambda, expression, or identifier");
     }
 
+
     for(size_t i = 0; i < ret.size();) {
-        if(ret[i] == ' ' && (i < ret.size() ? is_name_break(ret[i + 1]) : 1)) {
+        if(ret.at(i) == ' ' && ((i + 1) < ret.size() ? is_name_break(ret.at(i + 1)) : 0)) {
             ret.erase(i, 1);
         } else {
             ++i;
         }
+    }
+
+    bool hit_L = false;
+    bool hit_lparen = true;
+    for(size_t i = 0; i < ret.size(); ++i) {
+        //this is meant to catch strings such as "(Lxyx)" and "(a.a([...]))" (both of these do occur)
+        if(ret.at(i) == '(') {
+            hit_lparen = true;
+            hit_L = false;
+        } else if (ret.at(i) == 'L') {
+            hit_lparen = false;
+            hit_L = true;
+        } else if (ret.at(i) == '.') {
+            if (hit_lparen) {
+                std::cout << "\nbad string ('.'): " << ret << "\n";
+            } else {
+                hit_lparen = true;
+                hit_L = false;
+            }
+        } else if (ret.at(i) == ')') {
+            if (hit_L) {
+                std::cout << "\nbad string (')'): " << ret << "\n";
+                hit_L = false;
+                hit_lparen = true;
+            }
+        }
+        assert(ret.at(i) >= ' ');
     }
 
     return ret;

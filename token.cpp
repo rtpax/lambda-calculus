@@ -194,16 +194,14 @@ std::vector<token> tokenize_line(std::string line, int line_num, std::string fil
                 out.push_back(token{token_type::lazy_define, "", line_num, filename});
                 ++i;
             } else {
-                if(!is_whitespace(line[i])) {
-                    id = {token_type::identifier, "", line_num, filename};
+                id = {token_type::identifier, "", line_num, filename};
+                id.info += line[i];
+                ++i;
+                for(; i < line.size() && line[i] == '\'' ; ++i) {
                     id.info += line[i];
-                    ++i;
-                    for(; i < line.size() && line[i] == '\'' ; ++i) {
-                        id.info += line[i];
-                    }
-                    --i;
-                    out.push_back(id);
                 }
+                --i;
+                out.push_back(id);
             }
             break;
         case '#':

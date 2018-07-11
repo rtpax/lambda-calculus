@@ -1,11 +1,17 @@
+recursion::
+    Y := Lx.xx
+::recursion
+
 boolean::
     T := Lxy.x
     F := Lxy.y
-    
+
     & := Lxy.xyF
     | := Lxy.xTy
     ~ := Lx.xFT
+    ^ := Lxy.x(~y)y
 ::boolean
+
 natural::
     0 := Lsz.z
     S := Lwsz.s(wsz)
@@ -57,26 +63,18 @@ natural::
     `fib' := LGnpc.Zcp(GGp(+np)(-c1))
     `fib => Lc.`fib'`fib'01c
 
+    d := Lab.+(*a`10)b
+    D := Labc.+(*(dab)`10)c
 
-
-
-    `fib`7
+    `32 := d32
+    `fib(`12)
 
 ::natural
 
-recursion::
-    Y := Lx.xx
-::recursion
 
 integer::
 
     0' := :natural:0
-    1' := :natural:1
-    2' := :natural:2
-    3' := :natural:3
-    4' := :natural:4
-    5' := :natural:5
-    6' := :natural:6
     S' := :natural:S
     P' := :natural:P
     Z' := :natural:Z
@@ -97,17 +95,29 @@ integer::
     `pos? := La.~(Z'(aF))
     `neg? := La.~(Z'(aT))
     `nat? := La.Z'(aT)
+    Z := La.&(Z'(aT))(Z'(aF))
 
     S := La.`nat?`a(Lz.z0'(S'(aF)))(Lz.z(P'(aT))0')
     P := La.`pos?`a(Lz.z0'(P'(aF)))(Lz.z(S'(aT))0')
 
     + := Lab.aFS(aTPb)
-    * := Lab.aF(bS)(aT(bP)0)
-    - := La.Lz.z(aF)(aT) ;additive inverse -- not subtraction
+    - := La.Lz.z(aF)(aT) ; additive inverse -- not subtraction
+    * := Lab.aF(+b)(aT(+(-b))0)
 
-    `>= := (Lab.`nat?`a
+    `>= := Lab(`nat?`a
             (`nat?`b(`>='(aF)(bF))(T))
             (`nat?`b(F)(`<='(aT)(bT))))
+    `<= := Lab(`nat?`a
+            (`nat?`b(`<='(aF)(bF))(F))
+            (`nat?`b(T)(`>='(aT)(bT))))    
+    < := Lab(`nat?`a
+            (`nat?`b(<'(aF)(bF))(F))
+            (`nat?`b(T)(>'(aT)(bT))))
+    > := Lab(`nat?`a
+            (`nat?`b(>'(aF)(bF))(T))
+            (`nat?`b(F)(<'(aT)(bT))))
+    = := Lab(&(='(aF)(bF))(='(aT)(bT)))
+
 
     1 := S0
     2 := S1
@@ -151,6 +161,72 @@ integer::
     `-19 := P`-18
     `-20 := P`-19
 
-+`10(-`10)
+    `fact := LN`gen.`pos? N(*N(`gen(+N(-1))`gen))1
+    ! => Ln.`fact`n`fact
+
+    !3
+;::
+
+
+
+
+
+boolean evaluate(A)
+    switch(A.type)
+    case lambda:
+        return evaluate(A.out)
+    case expr:
+        if(A.head...head.type = lambda)
+            if(tails_until_lambda(A) >= count_args(A.head...head.args))
+                if(all_free(A.head...head.output))
+                    if(evaluate_arguments(A))
+                        return true
+                    else if(evaluate_lambda(A))
+                        return true
+                    else if(evaluate)
+        else // (A.head...head.type = id)
+            if (NOT A.head...head.bound)
+               expand(A.head...head) 
+        return evaluate(A.tail)
+    case id:
+        if(bound(A))
+            return false
+        if(has_value(A))
+            A.expand()
+            return true
+        return false
+
+
+
+La.a((Lb.b)c) -> La.ac
+La.(Lb.ab)c   -> La.ac
+La.(Lb.b)ac   -> La.(Lb.b)ac
+La.(Lb.bc)a   -> La.(Lb.bc)a
+
+`fib := Lc.Y(LGnpc.Zcp(GGp(+np)(-c1)))01c
+`fib := Lc.Y(LGnpc.(Lx.x(TF)T)cp(GGp((Lab.aSb)np)))01c
+
+;::
+
+                     /\
+                    /\ z
+                   /\ y
+                  /  x
+                 L-a
+                 L-b
+                 L-c
+                 /\ 
+                /\ c
+               a  b 
+
+
+
+::;
+
+
+
 
 ::integer
+
+
+

@@ -110,7 +110,7 @@ int load_file(std::string filename) {
             if(tik->tt == token_type::define) {
                 std::cout << " := ";
             } else {
-                std::cout << " = ";
+                std::cout << " => ";
             }
             break;
         case token_type::inductive_definition:
@@ -232,6 +232,9 @@ int load_file(std::string filename) {
                 if(!node->is_init()) {
                     break;
                 }
+                if(node->is_expr() && !node->expr_tail().is_init()) {
+                    node->copy_preserve_parent(std::move(node->expr_head()));
+                }
                 if(!node->is_deep_init()) {
                     emit_error("incomplete statement", tik->line_num, tik->filename);
                     break;
@@ -291,8 +294,13 @@ int evaluate_line(std::vector<token> line, int max_steps) {
 
 using namespace lambda;
 
-int main() {
-    load_file("test/test.lc");
+int main(int argc, char ** argv) {
+    if(argc <= 1) {
+        std::cout << "must input a file";
+        return 1;
+    }
+    load_file(argv[1]);
+    return 0;
 }
 
 
