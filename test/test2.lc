@@ -1,0 +1,43 @@
+recursion::
+    Y := Lx.xx
+::recursion
+
+boolean::
+    T := Lxy.x
+    F := Lxy.y
+
+    & := Lxy.xyF
+    | := Lxy.xTy
+    ~ := Lx.xFT
+    ^ := Lxy.x(~y)y
+::boolean
+
+
+
+
+
+(La.((Lxy.x(xy))(La.a)(Lb.ab)(Lqz.qzq)))
+(La(a))
+
+;::
+                                    La
+                                    /\___
+                                   /\    \
+                                  /\ La   Lq
+                                 / Lb a   Lz
+                                /   /\    /\
+                               /   a  b  /\ q
+                             Lx         q  z
+                             Ly 
+                             /\
+                            x /\
+                             x  y
+::;
+
+;I := (La(a))(La(a))
+
+
+; (La(Lb(b)Lc(c)))
+
+
+

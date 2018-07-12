@@ -1,5 +1,6 @@
 #include "component.h"
 #include "token.h"
+#include <algorithm>
 
 namespace lambda {
 
@@ -64,29 +65,6 @@ int component::evaluate_expression() {
     return ret;
 }
 
-int component::evaluate_step() {
-    if (is_expr()) {
-        if(expr_head().evaluate_step()) {
-            return 1;
-        } else {
-            if(expr_head().is_lambda() || expr_head().is_id()) {
-                return evaluate_expression();
-            } else {
-                return 0;
-            }
-        }
-    }
-    if (is_lambda()) {
-        return 0;
-    } else if (scope() == &prepkg::global) {
-        return 0;
-    } else if (scope() != &prepkg::bound) {
-        return 0;
-    } else {
-        return 0;
-    }
-}
-
 int component::simplify_step() {
     if(evaluate_step()) {
         return 1;
@@ -127,7 +105,7 @@ int component::simplify_step() {
 
 int component::evaluate(int timeout) {
     while(timeout > 0) {
-        // std::cout << "\n     " << to_string();
+        std::cout << "\n     " << to_string();
         --timeout;
         if(!evaluate_step())
             break;
@@ -143,6 +121,112 @@ int component::simplify(int timeout) {
             break;
     }
     return timeout;
+}
+
+bool component::has_unknown() const {
+    std::vector<std::string> known;
+    return has_unknown(known);
+}
+
+bool component::has_unknown(std::vector<std::string>& known) const {
+    if(is_expr()) {
+        return expr_head().has_unknown(known) || expr_tail().has_unknown(known);
+    } else if (is_lambda()) {
+        known.push_back(lambda_arg().id_name());
+        bool has = lambda_out().has_unknown(known);
+        known.pop_back();
+        return has;
+    } else if (is_id()) {
+        if(scope() == &prepkg::bound) {
+            if (std::find(known.begin(), known.end(), id_name()) == known.end()) { // not in the input list
+                return 1;
+            } else { // is in the input list
+                return 0;
+            }
+        } else if (scope() == &prepkg::global) {
+            const component * value = global.get_value(id_name());
+            if (value != nullptr) {
+                return 0;
+            } else {
+                return 1;
+            }
+        } else {
+            const component * value = scope()->get_value(id_name());
+            if (value != nullptr) {
+                return 0;
+            } else {
+                return 1;
+            }
+        }
+    } else {
+        throw std::logic_error("cannot call has_unknown on componenent of indeterminate type");
+    }
+}
+
+bool component::lambda_unknown_before_arg() const {
+    assert(is_lambda());
+    return lambda_out().lambda_unknown_before_arg(lambda_arg().id_name());
+}
+
+bool component::lambda_unknown_before_arg(const std::string& argname) const {
+    if (is_id()) {
+        if(id_name() == argname)
+            return 0;
+        if(has_unknown())
+            return 1;
+        return 0;
+    } else if (is_lambda()) {
+        if(lambda_arg().id_name() == argname)
+            return 0;
+        return lambda_out().lambda_unknown_before_arg(argname);
+    } else if (is_expr()) {
+        if(expr_head().lambda_unknown_before_arg(argname))
+            return 1;
+        return expr_tail().lambda_unknown_before_arg(argname);
+    } else {
+        throw std::logic_error("cannot call lambda_unknown_before_arg on component of indeterminate type");
+    }
+}
+
+int component::evaluate_step() {
+    if(is_expr()) {
+        if(expr_head().evaluate_step()) {
+            return 1;
+        }
+        if (!(expr_head().is_expr() && expr_head().has_unknown()) &&
+                !(expr_head().is_lambda() && !expr_head().lambda_unknown_before_arg())) { //otherwise value might not even be used
+            if(expr_tail().evaluate_step())
+                return 1;
+        }
+        if (expr_head().is_lambda()) {
+            return evaluate_expression();
+        }
+        return 0;
+    } else if (is_lambda()) {
+        return lambda_out().evaluate_step();
+    } else if (is_id()) {
+        if(scope() == &prepkg::bound) {
+            return 0;
+        } else if (scope() == &prepkg::global) {
+            const component * value = global.get_value(id_name());
+            if (value != nullptr) {
+                copy_preserve_parent(*value);
+                return 1;
+            } else {
+                return 0;
+            }
+        } else {
+            const component * value = scope()->get_value(id_name());
+            if (value != nullptr) {
+                copy_preserve_parent(*value);
+                return 1;
+            } else {
+                return 0;
+            }
+        }
+    } else {
+        throw std::logic_error("cannot evaluate uninitialized expression");
+    }
 }
 
 std::string component::to_string() const {
@@ -182,10 +266,8 @@ std::string component::to_string() const {
         bool prime = false;
         for(size_t i = 0; i < id_name().size(); ++i) {
             assert(!is_name_break(id_name().at(i)));
-            assert(id_name().at(i) >= '!');//not a control character
-            assert(id_name().at(i) != '.');
-            assert(id_name().at(i) != ')');
-            assert(id_name().at(i) != 'L');
+            assert(id_name().at(i) >= '!');//not a control character or space
+            assert(id_name().at(i) <= '~');//not DEL or extended ascii
             if(id_name().at(i) == '\'')
                 prime = true;
             if(prime)
@@ -229,39 +311,12 @@ std::string component::to_string() const {
         }
     }
 
-    bool hit_L = false;
-    bool hit_lparen = true;
-    for(size_t i = 0; i < ret.size(); ++i) {
-        //this is meant to catch strings such as "(Lxyx)" and "(a.a([...]))" (both of these do occur)
-        if(ret.at(i) == '(') {
-            hit_lparen = true;
-            hit_L = false;
-        } else if (ret.at(i) == 'L') {
-            hit_lparen = false;
-            hit_L = true;
-        } else if (ret.at(i) == '.') {
-            if (hit_lparen) {
-                std::cout << "\nbad string ('.'): " << ret << "\n";
-            } else {
-                hit_lparen = true;
-                hit_L = false;
-            }
-        } else if (ret.at(i) == ')') {
-            if (hit_L) {
-                std::cout << "\nbad string (')'): " << ret << "\n";
-                hit_L = false;
-                hit_lparen = true;
-            }
-        }
-        assert(ret.at(i) >= ' ');
-    }
-
     return ret;
 }
 
 
 
-const component * package::get_value(std::string key) {
+const component * package::get_value(std::string key) const {
     try { //holding out for c++20 map::contains
         return &values.at(key);
     } catch(std::out_of_range) {
@@ -272,10 +327,10 @@ void package::add_value(std::string key, const component& to_add) {
     values[key] = to_add;
 }
 
-const component * global_package::get_value(std::string key) {
+const component * global_package::get_value(std::string key) const {
     const component * ret = base.get_value(key);
     if (ret == nullptr) {
-        for(std::pair<const std::string,package>& p : packages) {
+        for(const std::pair<const std::string,package>& p : packages) {
             ret = p.second.get_value(key);
             if(ret != nullptr) {
                 return ret;
@@ -287,10 +342,10 @@ const component * global_package::get_value(std::string key) {
     }
 }
 
-const component * global_package::get_value(std::string component_key, std::vector<std::string> package_keys) {
+const component * global_package::get_value(std::string component_key, std::vector<std::string> package_keys) const {
     const component * ret;
-    for(std::vector<std::string>::reverse_iterator pki = package_keys.rbegin(); pki != package_keys.rend(); ++pki) {
-        package * p = get_package(*pki);
+    for(std::vector<std::string>::const_reverse_iterator pki = package_keys.crbegin(); pki != package_keys.crend(); ++pki) {
+        const package * p = get_package(*pki);
         if(p == nullptr) {
             throw std::logic_error("attempted to access nonexistant package");
         }
@@ -301,7 +356,7 @@ const component * global_package::get_value(std::string component_key, std::vect
 
     ret = base.get_value(component_key);
     if (ret == nullptr) {
-        for(std::pair<const std::string,package>& p : packages) {
+        for(const std::pair<const std::string,package>& p : packages) {
             ret = p.second.get_value(component_key);
             if(ret != nullptr) {
                 return ret;
@@ -322,6 +377,16 @@ package * global_package::add_package(std::string key) {
     if(key == "global")
         return &base;
     return &packages[key];
+}
+
+const package * global_package::get_package(std::string key) const {
+    if(key == "global")
+        return &base;
+    try {
+        return &packages.at(key);
+    } catch (std::out_of_range) {
+        return nullptr;
+    }
 }
 
 package * global_package::get_package(std::string key) {

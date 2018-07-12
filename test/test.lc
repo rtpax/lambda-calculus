@@ -60,17 +60,30 @@ natural::
     ! => Ln.`fact`n`fact
     !' => Ln.`fact'`fact'`n
 
-    `fib' := LGnpc.Zcp(GGp(+np)(-c1))
-    `fib => Lc.`fib'`fib'01c
-
+    `fib := Lc.Y(LGnpc.Zcp(GGp(+np)(-c1)))01c
+    
     d := Lab.+(*a`10)b
     D := Labc.+(*(dab)`10)c
 
-    `32 := d32
-    `fib(`12)
-
+    !2
+    ;`fib 7
 ::natural
 
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+;::
 
 integer::
 
@@ -164,47 +177,34 @@ integer::
     `fact := LN`gen.`pos? N(*N(`gen(+N(-1))`gen))1
     ! => Ln.`fact`n`fact
 
+
     !3
-;::
 
 
 
 
 
-boolean evaluate(A)
-    switch(A.type)
-    case lambda:
-        return evaluate(A.out)
-    case expr:
-        if(A.head...head.type = lambda)
-            if(tails_until_lambda(A) >= count_args(A.head...head.args))
-                if(all_free(A.head...head.output))
-                    if(evaluate_arguments(A))
-                        return true
-                    else if(evaluate_lambda(A))
-                        return true
-                    else if(evaluate)
-        else // (A.head...head.type = id)
-            if (NOT A.head...head.bound)
-               expand(A.head...head) 
-        return evaluate(A.tail)
-    case id:
-        if(bound(A))
-            return false
-        if(has_value(A))
-            A.expand()
-            return true
-        return false
+::integer
 
 
 
-La.a((Lb.b)c) -> La.ac
-La.(Lb.ab)c   -> La.ac
-La.(Lb.b)ac   -> La.(Lb.b)ac
-La.(Lb.bc)a   -> La.(Lb.bc)a
 
-`fib := Lc.Y(LGnpc.Zcp(GGp(+np)(-c1)))01c
-`fib := Lc.Y(LGnpc.(Lx.x(TF)T)cp(GGp((Lab.aSb)np)))01c
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
 
 ;::
 
@@ -222,11 +222,4 @@ La.(Lb.bc)a   -> La.(Lb.bc)a
 
 
 ::;
-
-
-
-
-::integer
-
-
 

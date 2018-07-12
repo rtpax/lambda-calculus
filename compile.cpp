@@ -34,7 +34,7 @@ int load_file(std::string filename) {
         std::vector<std::string>::iterator index;
         package * scope;
         component* oldnode = nullptr;
-        bool bound, empty;
+        bool bound, complete;
         switch(tik->tt) {
         case token_type::lambda:
             std::cout << "L";
@@ -215,13 +215,13 @@ int load_file(std::string filename) {
             }
             break;
         case token_type::newline:
-            empty = 1;
+            complete = node->is_init();
             for(component * check : parens) {
-                empty = check->is_lambda();
-                if(!empty)
+                if(!complete)
                     break;
+                complete = check->is_lambda();
             }
-            if(empty) {
+            if(complete) {
                 while(!parens.empty()) {
                     oldnode = node;
                     node = parens.back();
@@ -229,31 +229,30 @@ int load_file(std::string filename) {
                     node->append(std::move(*oldnode));
                     delete oldnode;
                 }
-                if(!node->is_init()) {
-                    break;
-                }
                 if(node->is_expr() && !node->expr_tail().is_init()) {
                     node->copy_preserve_parent(std::move(node->expr_head()));
                 }
+                assert(node->is_init());
                 if(!node->is_deep_init()) {
                     emit_error("incomplete statement", tik->line_num, tik->filename);
                     break;
                 }
                 int timeout = node->evaluate(TIMEOUT);
+
                 std::cout << "\n    " << node->to_string() << "[" << (TIMEOUT - timeout) << "]";
                 if(timeout == 0) {
                     emit_warning("stopped evaluating lambda after timeout",tik->line_num,tik->filename);
                 }
-
+                /*
                 if(definition.null() || !lazy_def) {
                     if(timeout != 0) {
-                        timeout = node->simplify(TIMEOUT);
-                        std::cout << "\n    " << node->to_string() << "[" << (TIMEOUT - timeout) << "]";
+                        int timeleft = node->simplify(timeout);
+                        std::cout << "\n    " << node->to_string() << "[" << (timeout - timeleft) << "]";
                         if(timeout == 0) {
                             emit_warning("stopped evaluating lambda after timeout",tik->line_num,tik->filename);
                         }
                     }
-                }
+                }*/
                 if(!definition.null()) {
                     for (std::string p : pkgs) {
                         if (global.get_package(p)->get_value(definition) != nullptr) {
@@ -278,7 +277,7 @@ int load_file(std::string filename) {
             break;
         }
     }
-    if(!tok.empty() && !parens.empty())
+    if(!tok.empty() && (!parens.empty() || !definition.null()))
         emit_warning("program ended with incomplete statement", tok.back().line_num, filename);
 
 

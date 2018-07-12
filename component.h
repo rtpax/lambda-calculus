@@ -23,7 +23,7 @@ class package {
 private:
     std::map<std::string, component> values;
 public:
-    const component * get_value(std::string key);
+    const component * get_value(std::string key) const;
     void add_value(std::string key, const component& to_add);
 };
 
@@ -49,9 +49,10 @@ private:
 public:
     package * add_package(std::string key);
     package * get_package(std::string key);
+    const package * get_package(std::string key) const;
 
-    const component * get_value(std::string key);
-    const component * get_value(std::string component_key, std::vector<std::string> package_keys);
+    const component * get_value(std::string key) const;
+    const component * get_value(std::string component_key, std::vector<std::string> package_keys) const;
     void add_value(std::string key, const component& to_add);
 };
 
@@ -347,19 +348,14 @@ public:
     }
 
     component& append(const component& to_add) {
-        if(is_init()) {
-            if (is_expr() && !expr_tail().is_init())
-                expr_tail(to_add);
-            else if (is_lambda())
-                lambda_out().append(to_add);
-            else
-                expr(std::move(*this), to_add);
-        } else {
-            copy_preserve_parent(to_add);
-        }
-        return *this;
+        component copy = to_add;
+        return append(std::move(copy));
     }
     component& append(component&& to_add) {
+        if(to_add.is_expr() && !to_add.expr_tail().is_init()) {
+            to_add = std::move(to_add.expr_tail());
+        }
+
         if(is_init()) {
             if (is_expr() && !expr_tail().is_init())
                 expr_tail(std::move(to_add));
@@ -453,14 +449,17 @@ public:
         }
         return 0;
     }
-    bool lambda_has_arg(std::string check) {
+    bool lambda_has_arg(std::string check) const {
         if(!is_lambda())
             return false;
         if(lambda_arg().id_name() == check)
             return true;
         return lambda_out().lambda_has_arg(check);
     }
-
+    bool has_unknown() const;
+    bool has_unknown(std::vector<std::string>& known) const;
+    bool lambda_unknown_before_arg() const;    
+    bool lambda_unknown_before_arg(const std::string& argname) const;
 
     std::string to_string() const;
 };
