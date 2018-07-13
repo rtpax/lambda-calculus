@@ -54,19 +54,17 @@ natural::
     < := Lxy.~(`>= xy)
     > := Lxy.~(`<= xy)
 
-    `fact := LN`gen.ZN1(*N(`gen(-N1)`gen))
-    `fact' := L`gen`N.ZN1(*N(`gen`gen(-N1)))
 
-    ! => Ln.`fact`n`fact
-    !' => Ln.`fact'`fact'`n
+    ! := Ln.((Lx.xnx)(LNG.ZN1(*N(G(-N1)G))))
 
     `fib := Lc.Y(LGnpc.Zcp(GGp(+np)(-c1)))01c
-    
+
     d := Lab.+(*a`10)b
     D := Labc.+(*(dab)`10)c
 
+
     !2
-    ;`fib 7
+    ;`fib 5
 ::natural
 
 

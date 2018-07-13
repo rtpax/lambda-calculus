@@ -165,13 +165,13 @@ bool component::has_unknown(std::vector<std::string>& known) const {
 
 bool component::lambda_unknown_before_arg() const {
     assert(is_lambda());
-    return lambda_out().lambda_unknown_before_arg(lambda_arg().id_name());
+    return lambda_out().lambda_unknown_before_arg(lambda_arg().id_name()) != 2;
 }
 
-bool component::lambda_unknown_before_arg(const std::string& argname) const {
+int component::lambda_unknown_before_arg(const std::string& argname) const {
     if (is_id()) {
         if(id_name() == argname)
-            return 0;
+            return 2;
         if(has_unknown())
             return 1;
         return 0;
@@ -180,9 +180,7 @@ bool component::lambda_unknown_before_arg(const std::string& argname) const {
             return 0;
         return lambda_out().lambda_unknown_before_arg(argname);
     } else if (is_expr()) {
-        if(expr_head().lambda_unknown_before_arg(argname))
-            return 1;
-        return expr_tail().lambda_unknown_before_arg(argname);
+        return expr_head().lambda_unknown_before_arg(argname) ?: expr_tail().lambda_unknown_before_arg(argname);
     } else {
         throw std::logic_error("cannot call lambda_unknown_before_arg on component of indeterminate type");
     }
@@ -193,7 +191,7 @@ int component::evaluate_step() {
         if(expr_head().evaluate_step()) {
             return 1;
         }
-        if (!(expr_head().is_expr() && expr_head().has_unknown()) &&
+        if (!((expr_head().is_expr() || expr_head().is_id()) && expr_head().has_unknown()) &&
                 !(expr_head().is_lambda() && !expr_head().lambda_unknown_before_arg())) { //otherwise value might not even be used
             if(expr_tail().evaluate_step())
                 return 1;

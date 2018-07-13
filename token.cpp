@@ -280,15 +280,11 @@ std::vector<token> tokenize(std::istream& in, std::string filename) {
     int line_num = 0;
 
     std::string line;
-    std::getline(in, line);
-    ++line_num;
 
-    while(!in.eof()) {
+    while(std::getline(in, line)) {
+        ++line_num;
         std::vector<token> line_tok = tokenize_line(line, line_num, filename, comment);
         out.insert(out.end(), line_tok.begin(), line_tok.end());
-
-        std::getline(in, line);
-        ++line_num;
     }
 
     return out;

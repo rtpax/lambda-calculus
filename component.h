@@ -352,10 +352,6 @@ public:
         return append(std::move(copy));
     }
     component& append(component&& to_add) {
-        if(to_add.is_expr() && !to_add.expr_tail().is_init()) {
-            to_add = std::move(to_add.expr_tail());
-        }
-
         if(is_init()) {
             if (is_expr() && !expr_tail().is_init())
                 expr_tail(std::move(to_add));
@@ -367,6 +363,18 @@ public:
             copy_preserve_parent(std::move(to_add));
         }
         return *this;
+    }
+    void collapse() {
+        if(is_expr()) {
+            if(!expr_tail().is_init()) {
+                copy_preserve_parent(std::move(expr_head()));
+            } else {
+                expr_head().collapse();
+                expr_tail().collapse();
+            }
+        } else if (is_lambda()) {
+            lambda_out().collapse();
+        }
     }
 
     
@@ -459,7 +467,7 @@ public:
     bool has_unknown() const;
     bool has_unknown(std::vector<std::string>& known) const;
     bool lambda_unknown_before_arg() const;    
-    bool lambda_unknown_before_arg(const std::string& argname) const;
+    int lambda_unknown_before_arg(const std::string& argname) const;
 
     std::string to_string() const;
 };
