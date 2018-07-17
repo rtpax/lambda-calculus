@@ -165,7 +165,7 @@ bool component::has_unknown(std::vector<std::string>& known) const {
 
 bool component::lambda_unknown_before_arg() const {
     assert(is_lambda());
-    return lambda_out().lambda_unknown_before_arg(lambda_arg().id_name()) != 2;
+    return lambda_out().bound_in_output(lambda_arg().id_name()) && lambda_out().lambda_unknown_before_arg(lambda_arg().id_name()) != 2;
 }
 
 int component::lambda_unknown_before_arg(const std::string& argname) const {

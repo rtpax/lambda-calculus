@@ -62,26 +62,7 @@ natural::
     d := Lab.+(*a`10)b
     D := Labc.+(*(dab)`10)c
 
-
-    !2
-    ;`fib 5
 ::natural
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-;::
 
 integer::
 
@@ -112,7 +93,7 @@ integer::
     P := La.`pos?`a(Lz.z0'(P'(aF)))(Lz.z(S'(aT))0')
 
     + := Lab.aFS(aTPb)
-    - := La.Lz.z(aF)(aT) ; additive inverse -- not subtraction
+    - := La.(Lz.z(aF)(aT)) ; additive inverse -- not subtraction
     * := Lab.aF(+b)(aT(+(-b))0)
 
     `>= := Lab(`nat?`a
@@ -172,14 +153,17 @@ integer::
     `-19 := P`-18
     `-20 := P`-19
 
-    `fact := LN`gen.`pos? N(*N(`gen(+N(-1))`gen))1
-    ! => Ln.`fact`n`fact
+    ; `fact := LNG.`pos? N(*N(G(+N(-1))G))1
+    ; ! := Ln.`fact`n`fact
+
+    ! := Ln.Y(LGn.`pos? n(*n(YG(+n(-1))))1)n
 
 
     !3
 
+    ;+5(`-1)
 
-
+    ;(La.(LGa.GaG)(LaG.a(GaG)a)a)F
 
 
 ::integer
@@ -194,30 +178,4 @@ integer::
 
 
 
-
-
-
-
-
-
-
-
-
-
-;::
-
-                     /\
-                    /\ z
-                   /\ y
-                  /  x
-                 L-a
-                 L-b
-                 L-c
-                 /\ 
-                /\ c
-               a  b 
-
-
-
-::;
 
