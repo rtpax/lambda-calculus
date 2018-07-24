@@ -44,11 +44,11 @@ int component::evaluate_expression() {
     if (expr_head().is_lambda()) {
         component * node = &expr_head().lambda_out();
         while(node->is_lambda()) {
-            if(expr_tail().bound_in_argument(node->lambda_arg().id_name())) {
+            if(expr_tail().bound_from_above(node->lambda_arg().id_name())) {
                 unsigned rev = 0;
                 std::string base = base_name(node->lambda_arg().id_name());
                 std::string alt = alt_name(base, rev);
-                while(expr_tail().bound_in_argument(alt) || node->lambda_out().bound_in_output(alt)) {
+                while(expr_tail().bound_from_above(alt) || node->lambda_out().bound_above_below(alt)) {
                     ++rev;
                     alt = alt_name(base, rev);
                 }
@@ -165,7 +165,7 @@ bool component::has_unknown(std::vector<std::string>& known) const {
 
 bool component::lambda_unknown_before_arg() const {
     assert(is_lambda());
-    return lambda_out().bound_in_output(lambda_arg().id_name()) && lambda_out().lambda_unknown_before_arg(lambda_arg().id_name()) != 2;
+    return lambda_out().bound_above_below(lambda_arg().id_name()) && lambda_out().lambda_unknown_before_arg(lambda_arg().id_name()) != 2;
 }
 
 int component::lambda_unknown_before_arg(const std::string& argname) const {
@@ -224,6 +224,104 @@ int component::evaluate_step() {
         }
     } else {
         throw std::logic_error("cannot evaluate uninitialized expression");
+    }
+}
+
+std::vector<component*> component::find_steps() {
+    std::vector<component*> ret;
+    if(is_expr()) {
+        if(expr_head().is_lambda()) {
+            ret.push_back(this);
+        }
+        std::vector<component*> temp = expr_head().find_steps();
+        ret.insert(ret.end(), temp.begin(), temp.end());
+        temp = expr_tail().find_steps();
+        ret.insert(ret.end(), temp.begin(), temp.end());
+    } else if (is_lambda()) {
+        std::vector<component*> temp = lambda_out().find_steps();
+        ret.insert(ret.end(), temp.begin(), temp.end());
+    } else if (is_id()) {
+        if(scope() == &prepkg::global) {
+            if(global.get_value(id_name()) != nullptr)
+                ret.push_back(this);            
+        } else if (scope() != &prepkg::bound) {
+            if(scope()->get_value(id_name()) != nullptr)
+                ret.push_back(this);
+        }
+    } else {
+        throw std::logic_error("cannot evaluate unitialized expression");
+    }
+    return ret;
+}
+
+bool component::match_bound(std::string myid, const component& comp, std::string compid) const {
+    if(is_lambda()) {
+        if(!comp.is_lambda()) {
+            return false;
+        }
+        if(lambda_arg().id_name() == myid) {
+            if(comp.lambda_out().bound_from_above(compid))
+                return false;
+            else
+                return true;
+        }
+        if(comp.lambda_arg().id_name() == compid) {
+            if(lambda_out().bound_from_above(myid))
+                return false;
+            else
+                return true;
+        }
+        return lambda_out().match_bound(myid, comp.lambda_out(), compid);
+    } else if (is_expr()) {
+        if(!comp.is_expr()) {
+            return false;
+        }
+        return expr_head().match_bound(myid,comp.expr_head(),compid) && expr_tail().match_bound(myid,comp.expr_tail(),compid);
+    } else if (is_id()) {
+        if(!comp.is_id()) {
+            return false;
+        }
+        return true;
+    } else {
+        return false;
+    }
+}
+
+bool component::lambda_arg_match(const component& comp) const {
+    assert(is_lambda());
+    if(!comp.is_lambda()) {
+        return false;
+    }
+    return match_bound(lambda_arg().id_name(), comp, comp.lambda_arg().id_name());
+}
+
+bool component::compare(const component& comp) const {
+    if(is_lambda()) {
+        if(!comp.is_lambda()) {
+            return false;
+        }
+        if(lambda_arg_match(comp)) {
+            return lambda_out().compare(comp.lambda_out());
+        } else {
+            return false;
+        }
+    } else if (is_expr()) {
+        if(!comp.is_expr()) {
+            return false;
+        }
+        return expr_head().compare(comp.expr_head()) && expr_tail().compare(comp.expr_tail());
+    } else if (is_id()) {
+        if(!comp.is_id()) {
+            return false;
+        }
+        if(scope() != &prepkg::bound || comp.scope() != &prepkg::bound) {
+            if(scope() != comp.scope() || id_name() != comp.id_name())
+                return false;
+            else
+                return true;
+        } else { //let the lambda part determine how to interpret bound ids
+            return true;
+        }
     }
 }
 
@@ -312,6 +410,134 @@ std::string component::to_string() const {
     return ret;
 }
 
+std::pair<std::string, std::vector<step_string_info>> component::step_string(const std::vector<component*>& steps) const {
+    std::pair<std::string, std::vector<step_string_info>> ret;
+    std::vector<component*> my_steps = steps;
+    ret.second = step_string(ret.first, my_steps);
+    return ret;
+}
+
+std::vector<step_string_info> component::step_string(std::string& out, std::vector<component*>& steps) const {
+    std::vector<step_string_info> ret;
+
+    if (is_lambda()) {
+        const component * node = this;
+        out += "L";
+        assert(lambda_arg().is_id());
+        out += lambda_arg().to_string();
+        node = &lambda_out();
+        while(node->is_lambda()) {
+            assert(node->lambda_arg().is_id());
+            node->lambda_arg().step_string(out, steps);
+            node = &node->lambda_out();
+        }
+        out += ".";
+        assert(node->is_init());
+        node->step_string(out, steps);
+    } else if (is_expr()) {
+        std::vector<component*>::iterator pos = std::find(steps.begin(), steps.end(), this);
+
+        if(pos != steps.end()) {
+            step_string_info to_add;
+            to_add.pos = *pos;
+            steps.erase(pos);
+            to_add.begin = out.size();
+            if(expr_head().is_lambda()) {
+                out += "(";
+                std::vector<step_string_info> subret = expr_head().step_string(out, steps);
+                out += ")";
+                ret.insert(ret.end(), subret.begin(), subret.end());
+            } else {
+                std::vector<step_string_info> subret = expr_head().step_string(out, steps);
+                ret.insert(ret.end(), subret.begin(), subret.end());
+            }
+            to_add.middle = out.size();
+            if(expr_tail().is_lambda() || expr_tail().is_expr()) {
+                out += "(";
+                std::vector<step_string_info> subret = expr_tail().step_string(out, steps);
+                out += ")";
+                ret.insert(ret.end(), subret.begin(), subret.end());
+            } else {
+                std::vector<step_string_info> subret = expr_tail().step_string(out, steps);
+                ret.insert(ret.end(), subret.begin(), subret.end());
+            }
+            to_add.end = out.size();
+        } else {
+            if(expr_head().is_lambda()) {
+                out += "(";
+                std::vector<step_string_info> subret = expr_head().step_string(out, steps);
+                out += ")";
+                ret.insert(ret.end(), subret.begin(), subret.end());
+            } else {
+                std::vector<step_string_info> subret = expr_head().step_string(out, steps);
+                ret.insert(ret.end(), subret.begin(), subret.end());
+            }
+            if(expr_tail().is_lambda() || expr_tail().is_expr()) {
+                out += "(";
+                std::vector<step_string_info> subret = expr_tail().step_string(out, steps);
+                out += ")";
+                ret.insert(ret.end(), subret.begin(), subret.end());
+            } else {
+                std::vector<step_string_info> subret = expr_tail().step_string(out, steps);
+                ret.insert(ret.end(), subret.begin(), subret.end());
+            }
+        }
+    } else if (is_id()) {
+        std::vector<component*>::iterator pos = std::find(steps.begin(), steps.end(), this);
+        step_string_info to_add;
+        if(pos != steps.end()) {
+            to_add.pos = *pos;
+            to_add.begin = out.size();
+            to_add.middle = out.size();
+        }
+        switch(base_name(id_name()).size()) {
+        case 0:
+            throw std::logic_error("identifier has name of length 0");
+        case 1:
+            if(id_name().at(0) != 'L') {
+                out += id_name();
+                break;
+            }
+            //else fallthrough
+        default:
+            if(id_name().at(id_name().size() - 1) == '\'') {
+                if(id_name().at(1) == '\'' && id_name().at(0) != 'L') {
+                    out += id_name();
+                } else {
+                    out += "`";
+                    out += id_name();
+                }
+            } else {
+                out += "`";
+                out += id_name();
+                out += " ";
+            }
+            break;
+        }
+        if(pos != steps.end()) {
+            to_add.end = out.size();
+            steps.erase(pos);
+        }
+    } else {
+        throw std::logic_error("component not a lambda, expression, or identifier");
+    }
+
+    for(size_t i = 0; i < out.size();) {
+        if(out.at(i) == ' ' && ((i + 1) < out.size() ? is_name_break(out.at(i + 1)) : 0)) {
+            for(step_string_info& ssi : ret) {
+                if(ssi.begin > i)
+                    --ssi.begin;
+                if(ssi.middle > i)
+                    --ssi.middle;
+                if(ssi.end > i)
+                    --ssi.end;
+            }
+            out.erase(i, 1);
+        } else {
+            ++i;
+        }
+    }
+}
 
 
 const component * package::get_value(std::string key) const {

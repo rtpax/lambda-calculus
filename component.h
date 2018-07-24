@@ -28,7 +28,7 @@ public:
 };
 
 /**
- * Containes dummy packages whit special meanings
+ * Containes dummy packages with special meanings
  **/
 namespace prepkg {
     /**Indicates an identifier that corresponds to an argument to a lambda**/
@@ -41,6 +41,11 @@ namespace prepkg {
     inline package expr;
 }
 
+/**
+ * stores all identifiers and their values in a program
+ * 
+ * class intended to be used as a singleton
+ **/
 class global_package {
 private:
     package base;
@@ -59,6 +64,16 @@ public:
 /**singleton used by components**/
 inline global_package global;
 
+struct step_string_info {
+    component * pos;
+    int begin;
+    int middle;
+    int end;
+};
+
+/**
+ * stores data for lambda expressions and conatains functions for computation
+ **/
 class component {
 private:
     component* _parent;
@@ -377,6 +392,7 @@ public:
         }
     }
 
+    std::vector<component*> find_steps();
     
     int evaluate_step();
     int evaluate(int timeout);
@@ -408,16 +424,16 @@ public:
     static unsigned base_rev(std::string name) {
         return name.size() - name.find_first_of('\'');
     }
-    bool bound_in_argument(const std::string& check) const {
+    bool bound_from_above(const std::string& check) const {
         if(is_lambda()) {
             if(lambda_arg().id_name() == check) {
                 return false;
             } else {
-                return lambda_out().bound_in_argument(check);
+                return lambda_out().bound_from_above(check);
             }
         } else if (is_expr()) {
-            return expr_head().bound_in_argument(check)
-                || expr_tail().bound_in_argument(check);
+            return expr_head().bound_from_above(check)
+                || expr_tail().bound_from_above(check);
         } else if (is_id()) {
             if(id_name() == check && scope() == &prepkg::bound) {
                 return true;
@@ -428,16 +444,16 @@ public:
             throw std::logic_error("component not a lambda, expression, or identifier");
         }
     }
-    bool bound_in_output(const std::string& check) const {
+    bool bound_above_below(const std::string& check) const {
         if(is_lambda()) {
             if(lambda_arg().id_name() == check) {
                 return true;
             } else {
-                return lambda_out().bound_in_output(check);
+                return lambda_out().bound_above_below(check);
             }
         } else if (is_expr()) {
-            return expr_head().bound_in_output(check)
-                || expr_tail().bound_in_output(check);
+            return expr_head().bound_above_below(check)
+                || expr_tail().bound_above_below(check);
         } else if (is_id()) {
             if(id_name() == check && scope() == &prepkg::bound) {
                 return true;
@@ -470,35 +486,21 @@ public:
     int lambda_unknown_before_arg(const std::string& argname) const;
 
     std::string to_string() const;
+    std::pair<std::string, std::vector<step_string_info>> step_string(const std::vector<component*>& steps) const;
+    std::vector<step_string_info> step_string(std::string& out, std::vector<component*>& steps) const;
+
+
+    bool match_bound(std::string myid, const component& comp, std::string compid) const;
+    bool lambda_arg_match(const component& comp) const;
+    bool compare(const component& comp) const;
+    bool operator==(const component& comp) { return compare(comp); }
+    bool operator!=(const component& comp) { return !compare(comp); }
+
 };
 
 
 
-
-
-
-
-
-
-
-
-
-
 }
-
-
-
-
-
-
-
-
-
-
-
-
-
-
 
 
 #endif

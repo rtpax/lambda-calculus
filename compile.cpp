@@ -9,7 +9,7 @@ namespace lambda {
 
 int load_file(std::string filename) {
     static const int TIMEOUT = 100000;
-    
+
     std::ifstream ifs(filename, std::ifstream::in);
     if(!ifs.is_open()) {
         return 0;
@@ -18,7 +18,7 @@ int load_file(std::string filename) {
     std::vector<token> tok = tokenize(ifs, filename);
     if(!tok.empty())
         tok.push_back(token{token_type::newline,"",tok.back().tt == token_type::newline ? tok.back().line_num + 1 : tok.back().line_num,filename});
- 
+
     ifs.close();
 
     nullable<std::string> definition;
@@ -45,7 +45,7 @@ int load_file(std::string filename) {
             while (node->is_lambda()) {
                 node = &node->lambda_out();
             }
-            
+
             oldnode = node;
 
             ++tik;
@@ -143,8 +143,14 @@ int load_file(std::string filename) {
             }
             break;
         case token_type::file:
+            if(node->is_init() || !parens.empty()) {
+                emit_warning("inserting file within an expression", tik->line_num, tik->filename);
+            }
             if(/*file not opened yet*/1) {
-                load_file(tik->info);//TODO search for the file in viable spots relative to open file before including
+                //TODO search for the file in viable spots relative to open file before including
+                if(!load_file(tik->info)) {
+                    emit_error("could not open file", tik->line_num, tik->filename);
+                }
             } else {
                 emit_warning("skipping repeated file", tik->line_num, tik->filename);
             }
