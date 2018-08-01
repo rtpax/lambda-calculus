@@ -319,7 +319,7 @@ bool component::compare(const component& comp) const {
                 return false;
             else
                 return true;
-        } else { //let the lambda part determine how to interpret bound ids
+        } else { //let the lambda section determine how to interpret bound ids
             return true;
         }
     }
@@ -400,7 +400,7 @@ std::string component::to_string() const {
 
 
     for(size_t i = 0; i < ret.size();) {
-        if(ret.at(i) == ' ' && ((i + 1) < ret.size() ? is_name_break(ret.at(i + 1)) : 0)) {
+        if(ret.at(i) == ' ' && ((i + 1) < ret.size() ? is_name_break(ret.at(i + 1)) : 1)) {
             ret.erase(i, 1);
         } else {
             ++i;
@@ -523,7 +523,7 @@ std::vector<step_string_info> component::step_string(std::string& out, std::vect
     }
 
     for(size_t i = 0; i < out.size();) {
-        if(out.at(i) == ' ' && ((i + 1) < out.size() ? is_name_break(out.at(i + 1)) : 0)) {
+        if(out.at(i) == ' ' && ((i + 1) < out.size() ? is_name_break(out.at(i + 1)) : 1)) {
             for(step_string_info& ssi : ret) {
                 if(ssi.begin > i)
                     --ssi.begin;

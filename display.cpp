@@ -14,23 +14,21 @@ int display::init() {
     static bool did_init = false;
     if(!did_init) {
         did_init = true;
+        initscr();
+        cbreak();
+        noecho();
+        keypad(stdscr, true);
+        if(nodelay(stdscr, true) == ERR)
+            cleanup_exit(0);
         signal(SIGINT, cleanup_exit);
     }
+    return 0;
 }
 
 display::display() {
     display::init();
-    
-    initscr();
-    cbreak();
-    noecho();
-    keypad(stdscr, true);
-    if(nodelay(stdscr, true) == ERR)
-        cleanup_exit();
-
-    choices_index = 0;
+    choices_index = -1;
     focus = nullptr;
-    draw_window();
 }
 
 int display::show() {
@@ -80,13 +78,9 @@ int display::~display() {
 
 }
 
-
-
-
-
-
-
-
+int main() {
+    
+}
 
 
 
