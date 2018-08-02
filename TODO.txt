@@ -16,9 +16,16 @@ add support for global_package
     scope will be raw pointer to package
     
 add random solving to component
-    try evaluate halting steps
+    if able, evaluate halting steps
     else generate the list of allowable operations and perform one at random
     else done
+
+
+only one package can be "open" at a time; eg this is illegal:
+A::
+B::
+::A
+::B
 
 
 

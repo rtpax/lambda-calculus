@@ -1,0 +1,105 @@
+(LdG.G((Lxd.x)(Gd)))(LdG.G((Lxd.x)(Gd)))
+
+
+
+
+
+0(LXa.X(X(Xa)))(LG.(La.a)G)
+
+<id> := [[all valid variable names except X]]
+<id-list> := <id> <id-list> | <epsilon>
+<filler> := <epsilon> | <nonempty-filler>
+<nonempty-filler> := (lambda <id> <id-list> . <nonempty-filler>) <filler> | <id> <filler> | (<nonempty-filler>) <filler>
+<reduction> := (X <filler> <reduction> <filler>) | (X <nonempty-filler>)
+<base-reduction> := (lambda <id> <id-list> . <filler> <base-reduction> <filler>) | (<filler> <base-reduction> <filler>) | <reduction> | X
+<reduced-lambda> := (lambda <id-list> X <id-list> . <filler> <base-reduction> <filler>)
+
+definition 1.0: 
+    X is raw if it hads no arguments passed to it
+
+Lemma 1.0:
+    no lambda argument may be passed as an argument to itself raw in a reduced expression
+proof:
+    for X to be passed to itself raw, the expression must have X X.
+    for each X, there is 1 raw <base-reduction>
+    for each <base-reduction> X can appear in two ways:
+        1. as X, at which point the base reduction has terminated and there is only 1 instance of X
+        2. in <reduction>
+    in <reduction> X can appear in two ways:
+        1. (X <filler> <reduction>) at which point X will have something called to it 
+        2. (X <nonempty-filler> at which point X will have something called to it
+    since in all cases in which X can appear more than once, X is not raw, X can never be passed to itself raw
+
+Lemma 1.1
+    no lambda argument that appears more than once may be passed raw into another function in a reduced expression
+
+Lemma 1.2
+    evaluation of a reduced expression may result in a non-reduced expression
+proof:
+    LXY.(Lab.a(ab))(X(XY)) -> LXYb.(X(XY))((X(XY))b)
+    LX.(La.a(Ld.d)(a(Ld.d)))(Ld.X) -> LX.XX
+
+
+
+(Lab.a(Lcd.c(cdc))ba)(Lxy.x)
+^''''''''''''''''''''^''''''
+
+
+(Lsz.s(s(s(s(sz)))))(Lpsz.s(psz))(Lsz.z)
+^~~~~~~~~~~~~~~~~~~~^~~~~~~~~~~~~
+
+(Lz.(Lpsz.s(psz))((Lpsz.s(psz))((Lpsz.s(psz))((Lpsz.s(psz))((Lpsz.s(psz))z)))))(Lsz.z)
+^~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~^~~~~~~
+
+(Lz.(Lpsz.s(psz))((Lpsz.s(psz))((Lpsz.s(psz))((Lpsz.s(psz))((Lpsz.s(psz))z)))))(Lsz.z)
+    ^~~~~~~~~~~~~^~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
+
+(Lz.(Lpsz.s(psz))((Lpsz.s(psz))((Lpsz.s(psz))((Lpsz.s(psz))((Lpsz.s(psz))z)))))(Lsz.z)
+                  ^~~~~~~~~~~~~^~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
+
+(Lz.(Lpsz.s(psz))((Lpsz.s(psz))((Lpsz.s(psz))((Lpsz.s(psz))((Lpsz.s(psz))z)))))(Lsz.z)
+                                ^~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
+
+(Lz.(Lpsz.s(psz))((Lpsz.s(psz))((Lpsz.s(psz))((Lpsz.s(psz))((Lpsz.s(psz))z)))))(Lsz.z)
+                                              ^~~~~~~~~~~~~^~~~~~~~~~~~~~~~
+
+(Lz.(Lpsz.s(psz))((Lpsz.s(psz))((Lpsz.s(psz))((Lpsz.s(psz))((Lpsz.s(psz))z)))))(Lsz.z)
+                                                            ^~~~~~~~~~~~~^
+
+
+
+
+
+
+
+
+
+
+std::vector<component*> get_options() {
+    if(is_expr()) {
+        if(expr_head().is_lambda()) {
+            push_back(this)
+        }
+        ret.append(expr_head().get_options())
+        ret.append(expr_tail().get_options())
+    } else if(is_id) {
+        if(id_expandable())
+        push_back(this)
+    } else if(is_lambda){
+        ret.append(lambda_out().get_options())
+    } else {
+        throw std::logic_error("not init");
+    }
+}
+
+
+
+
+if(ret.size() == 1)
+    assert(ret.front().is_id())
+    assert(id_expand() == success)
+else if(ret.size() == 2)
+    assert(ret.front().is_lambda())
+    ret.front().lambda_apply(ret.back())
+else
+    throw std::logic_error()

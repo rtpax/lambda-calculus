@@ -6,7 +6,7 @@ namespace lambda {
 
 int component::replace_ids(std::string replace_name, const component& replace, package * replace_scope) {
     if (is_id()) {
-        if (id_name() == replace_name && scope() == replace_scope) {
+        if (id_name() == replace_name && scope(replace_scope)) {
             copy_preserve_parent(replace);
             return 1;
         } else {
@@ -27,9 +27,9 @@ int component::replace_ids(std::string replace_name, const component& replace, p
 
 int component::evaluate_expression() {
     int ret = 0;
-    if(expr_head().is_id() && expr_head().scope() != &prepkg::bound) {
+    if(expr_head().is_id() && !expr_head().id_is_bound()) {
         const component * id_value = nullptr;
-        if(expr_head().scope() == &prepkg::global) {
+        if(expr_head().id_is_global()) {
             id_value = global.get_value(expr_head().id_name());
         } else {
             id_value = expr_head().scope()->get_value(expr_head().id_name());
@@ -82,7 +82,7 @@ int component::simplify_step() {
         }
     } else if (is_lambda()) {
         return lambda_out().simplify_step();
-    } else if (scope() == &prepkg::global) {
+    } else if (is_global()) {
         const component * value = global.get_value(id_name());
         if(value == nullptr) {
             return 0;
@@ -90,7 +90,7 @@ int component::simplify_step() {
             copy_preserve_parent(*value);
             return 1;
         }
-    } else if (scope() == &prepkg::bound) {
+    } else if (is_bound()) {
         return 0;
     } else {
         const component * value = scope()->get_value(id_name());
@@ -137,13 +137,13 @@ bool component::has_unknown(std::vector<std::string>& known) const {
         known.pop_back();
         return has;
     } else if (is_id()) {
-        if(scope() == &prepkg::bound) {
+        if(is_bound()) {
             if (std::find(known.begin(), known.end(), id_name()) == known.end()) { // not in the input list
                 return 1;
             } else { // is in the input list
                 return 0;
             }
-        } else if (scope() == &prepkg::global) {
+        } else if (is_global()) {
             const component * value = global.get_value(id_name());
             if (value != nullptr) {
                 return 0;
@@ -203,9 +203,9 @@ int component::evaluate_step() {
     } else if (is_lambda()) {
         return lambda_out().evaluate_step();
     } else if (is_id()) {
-        if(scope() == &prepkg::bound) {
+        if(is_bound()) {
             return 0;
-        } else if (scope() == &prepkg::global) {
+        } else if (is_global()) {
             const component * value = global.get_value(id_name());
             if (value != nullptr) {
                 copy_preserve_parent(*value);
@@ -241,10 +241,10 @@ std::vector<component*> component::find_steps() {
         std::vector<component*> temp = lambda_out().find_steps();
         ret.insert(ret.end(), temp.begin(), temp.end());
     } else if (is_id()) {
-        if(scope() == &prepkg::global) {
+        if(id_is_global()) {
             if(global.get_value(id_name()) != nullptr)
                 ret.push_back(this);            
-        } else if (scope() != &prepkg::bound) {
+        } else if (!id_is_bound()) {
             if(scope()->get_value(id_name()) != nullptr)
                 ret.push_back(this);
         }
@@ -314,7 +314,7 @@ bool component::compare(const component& comp) const {
         if(!comp.is_id()) {
             return false;
         }
-        if(scope() != &prepkg::bound || comp.scope() != &prepkg::bound) {
+        if(!id_is_bound() || !comp.id_is_bound()) {
             if(scope() != comp.scope() || id_name() != comp.id_name())
                 return false;
             else

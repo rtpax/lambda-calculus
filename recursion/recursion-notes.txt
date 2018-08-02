@@ -1,0 +1,40 @@
+
+
+fact := Ln`gen.*n(`gen(-n1)gen)
+
+option to either evaluate free variables on the spot or let them just be free in functions
+
+if evaluated later (lazy):
+    their must be a dynamic scope, which could have non-intuitive results. 
+        (ie created in package, using variable from global space, conflicts with later define variable in package space)
+        this could be made false with a flag of its own (so package is determined right away)
+    explicit recursion is possible (though this should be it's own flag)
+    order of definition is unimportant
+
+if evaluated on the spot:
+    all identifiers used must already be defined before they are used
+    recursion must be done through combinators
+    note that no lambda expressions are evaluated, just ids are expanded
+    this should be the default since it matches lambda calculus
+
+
+
+we could evaluate expressions if at no point in the definition we see something of the from
+
+L---x---.---x---(`N1)(`N2)...(Xx)...(`N#)--- ; X, Y, Z, N#, and n# can be empty
+
+since this is potentially a combinator
+
+
+
+
+
+
+
+
+
+
+
+
+
+

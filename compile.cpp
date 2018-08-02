@@ -94,7 +94,7 @@ int load_file(std::string filename) {
                 emit_error("cannot have multiple defintions in the same statement", tik->line_num, tik->filename);
                 break;
             }
-            if(node->is_id() && node->parent() == nullptr && node->scope() == &prepkg::global) {
+            if(node->is_id() && node->parent() == nullptr && node->id_is_global()) {
                 definition = node->id_name();
                 if(tik->tt == token_type::define) {
                     lazy_def = false;
