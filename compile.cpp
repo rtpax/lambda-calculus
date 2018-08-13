@@ -7,13 +7,15 @@
 namespace lambda {
 
 
-int load_file(std::string filename) {
+global_package * load_file(std::string filename) {
     static const int TIMEOUT = 100000;
 
     std::ifstream ifs(filename, std::ifstream::in);
     if(!ifs.is_open()) {
-        return 0;
+        throw std::runtime_error("could not open file " + filename);
     }
+
+    global_package * global = new global_package();
 
     std::vector<token> tok = tokenize(ifs, filename);
     if(!tok.empty())
@@ -94,7 +96,7 @@ int load_file(std::string filename) {
                 emit_error("cannot have multiple defintions in the same statement", tik->line_num, tik->filename);
                 break;
             }
-            if(node->is_id() && node->parent() == nullptr && node->id_is_global()) {
+            if(node->is_id() && node->parent() == nullptr && node->is_global()) {
                 definition = node->id_name();
                 if(tik->tt == token_type::define) {
                     lazy_def = false;
@@ -139,7 +141,7 @@ int load_file(std::string filename) {
             } else {
                 //TODO get more specific packages if able
                 //error if not found
-                node->append(component().id(tik->info, &prepkg::global));
+                node->append(component().id(tik->info, package::GLOBAL));
             }
             break;
         case token_type::file:
@@ -159,7 +161,7 @@ int load_file(std::string filename) {
         case token_type::package_begin:
             //TODO check if package has a valid name
             if(std::find(pkgs.begin(), pkgs.end(), tik->info) == pkgs.end()) {
-                global.add_package(tik->info);
+                global->add_package(tik->info);
                 pkgs.push_back(tik->info);
             } else {
                 emit_warning("began package twice", tik->line_num, tik->filename);
@@ -176,10 +178,10 @@ int load_file(std::string filename) {
             std::cout << "::" << tik->info << "\n";
             break;
         case token_type::package_scope:
-            scope = global.get_package(tik->info);
+            scope = global->get_package(tik->info);
             if(scope == nullptr) {
                 emit_warning("could not find the specified package. defaulting to global scope.", tik->line_num, tik->filename);
-                scope = &prepkg::global;
+                scope = global->get_global();
             }
             std::cout << ":" << tik->info << ":";
             ++tik;
@@ -187,7 +189,7 @@ int load_file(std::string filename) {
                 emit_error("package scope must be followed by an identifier", tik->line_num, tik->filename);
                 --tik;
             } else {
-                const component * value = scope ? scope->get_value(tik->info) : global.get_value(tik->info);
+                const component * value = scope ? scope->get_value(tik->info) : global->get_value(tik->info);
                 if(value == nullptr) {
                     emit_warning("could not find variable in the specified scope", tik->line_num, tik->filename);
                 }
@@ -199,7 +201,7 @@ int load_file(std::string filename) {
                 } else {
                     std::cout << "`" << tik->info << " ";
                 }
-                node->append(component().id(tik->info, scope ?: &prepkg::global));
+                node->append(component().id(tik->info, scope ? scope : global->get_global()));
             }
             break;
         case token_type::lparen:
@@ -278,16 +280,16 @@ int load_file(std::string filename) {
                 }
                 if(!definition.null()) {
                     for (std::string p : pkgs) {
-                        if (global.get_package(p)->get_value(definition) != nullptr) {
+                        if (global->get_package(p)->get_value(definition) != nullptr) {
                             emit_warning("redefining variable within package", tik->line_num, tik->filename);
                         }
-                        global.get_package(p)->add_value(definition, *node);
+                        global->get_package(p)->add_value(definition, *node);
                     }
                     if (pkgs.empty()) {
-                        if (global.get_value(definition) != nullptr) {
+                        if (global->get_value(definition) != nullptr) {
                             emit_warning("redefining variable in global space", tik->line_num, tik->filename);
                         }
-                        global.add_value(definition, *node);
+                        global->add_value(definition, *node);
                     }
                     definition.nullify();
                 }
@@ -303,8 +305,7 @@ int load_file(std::string filename) {
     if(!tok.empty() && (!parens.empty() || !definition.null()))
         emit_warning("program ended with incomplete statement", tok.back().line_num, filename);
 
-
-    return 1;
+    return global;
 }
 
 int evaluate_line(std::vector<token> line, int max_steps) {

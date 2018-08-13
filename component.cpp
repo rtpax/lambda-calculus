@@ -16,7 +16,7 @@ int component::replace_ids(std::string replace_name, const component& replace, p
         return expr_head().replace_ids(replace_name, replace, replace_scope) + 
             expr_tail().replace_ids(replace_name, replace, replace_scope);
     } else if (is_lambda()) {
-        if(replace_scope == &prepkg::bound && lambda_arg().id_name() == replace_name) {
+        if(replace_scope->is_bound() && lambda_arg().id_name() == replace_name) {
             return 0;
         } else {
             return lambda_out().replace_ids(replace_name, replace, replace_scope);
@@ -27,10 +27,10 @@ int component::replace_ids(std::string replace_name, const component& replace, p
 
 int component::evaluate_expression() {
     int ret = 0;
-    if(expr_head().is_id() && !expr_head().id_is_bound()) {
+    if(expr_head().is_id() && !expr_head().is_bound()) {
         const component * id_value = nullptr;
-        if(expr_head().id_is_global()) {
-            id_value = global.get_value(expr_head().id_name());
+        if(expr_head().is_global()) {
+            id_value = global_scope()->get_value(expr_head().id_name());
         } else {
             id_value = expr_head().scope()->get_value(expr_head().id_name());
         }
@@ -52,7 +52,7 @@ int component::evaluate_expression() {
                     ++rev;
                     alt = alt_name(base, rev);
                 }
-                node->lambda_out().replace_ids(node->lambda_arg().id_name(), component().id(alt), &prepkg::bound);
+                node->lambda_out().replace_ids(node->lambda_arg().id_name(), component().id(alt), node->global_scope()->get_bound());
                 node->lambda_arg().id_name() = alt;
             }
             node = &node->lambda_out();
@@ -83,7 +83,7 @@ int component::simplify_step() {
     } else if (is_lambda()) {
         return lambda_out().simplify_step();
     } else if (is_global()) {
-        const component * value = global.get_value(id_name());
+        const component * value = global_scope()->get_value(id_name());
         if(value == nullptr) {
             return 0;
         } else {
@@ -144,7 +144,7 @@ bool component::has_unknown(std::vector<std::string>& known) const {
                 return 0;
             }
         } else if (is_global()) {
-            const component * value = global.get_value(id_name());
+            const component * value = global_scope()->get_value(id_name());
             if (value != nullptr) {
                 return 0;
             } else {
@@ -206,7 +206,7 @@ int component::evaluate_step() {
         if(is_bound()) {
             return 0;
         } else if (is_global()) {
-            const component * value = global.get_value(id_name());
+            const component * value = global_scope()->get_value(id_name());
             if (value != nullptr) {
                 copy_preserve_parent(*value);
                 return 1;
@@ -241,10 +241,10 @@ std::vector<component*> component::find_steps() {
         std::vector<component*> temp = lambda_out().find_steps();
         ret.insert(ret.end(), temp.begin(), temp.end());
     } else if (is_id()) {
-        if(id_is_global()) {
-            if(global.get_value(id_name()) != nullptr)
+        if(is_global()) {
+            if(global_scope()->get_value(id_name()) != nullptr)
                 ret.push_back(this);            
-        } else if (!id_is_bound()) {
+        } else if (!is_bound()) {
             if(scope()->get_value(id_name()) != nullptr)
                 ret.push_back(this);
         }
@@ -295,13 +295,13 @@ bool component::lambda_arg_match(const component& comp) const {
     return match_bound(lambda_arg().id_name(), comp, comp.lambda_arg().id_name());
 }
 
-bool component::compare(const component& comp) const {
+bool component::equivalent(const component& comp) const {
     if(is_lambda()) {
         if(!comp.is_lambda()) {
             return false;
         }
         if(lambda_arg_match(comp)) {
-            return lambda_out().compare(comp.lambda_out());
+            return lambda_out().equivalent(comp.lambda_out());
         } else {
             return false;
         }
@@ -309,12 +309,12 @@ bool component::compare(const component& comp) const {
         if(!comp.is_expr()) {
             return false;
         }
-        return expr_head().compare(comp.expr_head()) && expr_tail().compare(comp.expr_tail());
+        return expr_head().equivalent(comp.expr_head()) && expr_tail().equivalent(comp.expr_tail());
     } else if (is_id()) {
         if(!comp.is_id()) {
             return false;
         }
-        if(!id_is_bound() || !comp.id_is_bound()) {
+        if(!is_bound() || !comp.is_bound()) {
             if(scope() != comp.scope() || id_name() != comp.id_name())
                 return false;
             else
@@ -358,7 +358,7 @@ std::string component::to_string() const {
             ret += expr_tail().to_string();
         }
     } else if (is_id()) {
-#ifndef NDEBUG
+    #ifndef NDEBUG
         bool prime = false;
         for(size_t i = 0; i < id_name().size(); ++i) {
             assert(!is_name_break(id_name().at(i)));
@@ -369,7 +369,7 @@ std::string component::to_string() const {
             if(prime)
                 assert(id_name().at(i) == '\'');
         }
-#endif
+    #endif
         switch(base_name(id_name()).size()) {
         case 0:
             throw std::logic_error("identifier has name of length 0");
@@ -540,88 +540,7 @@ std::vector<step_string_info> component::step_string(std::string& out, std::vect
 }
 
 
-const component * package::get_value(std::string key) const {
-    try { //holding out for c++20 map::contains
-        return &values.at(key);
-    } catch(std::out_of_range) {
-        return nullptr;
-    }
-}
-void package::add_value(std::string key, const component& to_add) {
-    values[key] = to_add;
-}
 
-const component * global_package::get_value(std::string key) const {
-    const component * ret = base.get_value(key);
-    if (ret == nullptr) {
-        for(const std::pair<const std::string,package>& p : packages) {
-            ret = p.second.get_value(key);
-            if(ret != nullptr) {
-                return ret;
-            }
-        }
-        return nullptr;
-    } else {
-        return ret;
-    }
-}
-
-const component * global_package::get_value(std::string component_key, std::vector<std::string> package_keys) const {
-    const component * ret;
-    for(std::vector<std::string>::const_reverse_iterator pki = package_keys.crbegin(); pki != package_keys.crend(); ++pki) {
-        const package * p = get_package(*pki);
-        if(p == nullptr) {
-            throw std::logic_error("attempted to access nonexistant package");
-        }
-        ret = p->get_value(component_key);
-        if(ret != nullptr)
-            return ret;
-    }
-
-    ret = base.get_value(component_key);
-    if (ret == nullptr) {
-        for(const std::pair<const std::string,package>& p : packages) {
-            ret = p.second.get_value(component_key);
-            if(ret != nullptr) {
-                return ret;
-            }
-        }
-        return nullptr;
-    } else {
-        return ret;
-    }
-}
-
-
-void global_package::add_value(std::string key, const component& to_add) {        
-    base.add_value(key, to_add);
-}
-
-package * global_package::add_package(std::string key) {
-    if(key == "global")
-        return &base;
-    return &packages[key];
-}
-
-const package * global_package::get_package(std::string key) const {
-    if(key == "global")
-        return &base;
-    try {
-        return &packages.at(key);
-    } catch (std::out_of_range) {
-        return nullptr;
-    }
-}
-
-package * global_package::get_package(std::string key) {
-    if(key == "global")
-        return &base;
-    try {
-        return &packages.at(key);
-    } catch (std::out_of_range) {
-        return nullptr;
-    }
-}
 
 }
 

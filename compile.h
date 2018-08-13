@@ -6,7 +6,7 @@
 
 namespace lambda {
 
-int load_file(std::string filename);
+global_package * load_file(std::string filename);
 
 int evaluate_line(std::vector<token> line, int max_steps = 1024);
 
@@ -14,4 +14,4 @@ int evaluate_line(std::vector<token> line, int max_steps = 1024);
 }
 
 
-#endif
+#endif //LAMBDA_COMPILE_H

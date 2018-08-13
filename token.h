@@ -93,4 +93,4 @@ inline bool is_name_break(char c) {
 }
 
 
-#endif
+#endif //LAMBDA_TOKEN_H

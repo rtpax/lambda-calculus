@@ -1,82 +1,15 @@
-#ifndef COMPONENT_H
-#define COMPONENT_H
+#ifndef LAMBDA_COMPONENT_H
+#define LAMBDA_COMPONENT_H
 
-#include <assert.h>
+#include <cassert>
 #include <string>
 #include <vector>
-#include <map>
 #include "nullable.h"
+#include "package.h"
 #include <limits>
 
 namespace lambda {
 
-class package;
-class global_package;
-class component;
-
-/**
- * Stores values of idenitifiers in `packages`. Identifiers that belong to a specific package
- * should store a pointer to that package. There are no nested packages.
- * 
- * Special packages are dummies that indicate a more general attribute (namely global, bound, lambda, expr)
- **/
-class package {
-public:
-    const component * get_value(std::string key) const;
-    void add_value(std::string key, const component& to_add);
-    enum category {
-        BOUND,
-        GLOBAL,
-        LAMBDA,
-        EXPR,
-        PACKAGE,
-        EMPTY
-    };
-    bool is_bound() { return cat == BOUND; }
-    bool is_global() { return cat == GLOBAL; }
-    bool is_lambda() { return cat == LAMBDA; }
-    bool is_expr() { return cat == EXPR; }
-    bool is_package() { return cat == PACKAGE; }
-    bool is_id() { return cat == PACKAGE || cat == BOUND || cat == GLOBAL; }
-    bool is_init() { return cat != EMPTY; }
-    const std::string& name() { return pkg_name; }
-    global_package* package_space() { return pkg_space; }
-    package* equivalent_in(global_package* other_space);
-private:
-    category cat;
-    std::string pkg_name;
-    global_package* pkg_space;
-    std::map<std::string, component> values;
-};
-
-/**
- * stores all identifiers and their values in a program
- **/
-class global_package {
-private:
-    package base;
-    package bound,global,lambda,expr,blank;
-    std::map<std::string, package> packages;
-    std::vector<std::string> open;
-public:
-    package * add_package(std::string key);
-    package * get_package(std::string key);
-    const package * get_package(std::string key) const;
-
-    const component * get_value(std::string key) const;
-    const component * get_value(std::string component_key, std::vector<std::string> package_keys) const;
-    void add_value(std::string key, const component& to_add);
-
-    package * get_lambda() { return &lambda; }
-    package * get_expr() { return &expr; }
-    package * get_bound() { return &bound; }
-    package * get_global() { return &global; }
-    package * get_blank() { return &global; }
-    package * get_by_category(package::category cat);
-};
-
-/**singleton used by default in components**/
-inline global_package default_space;
 
 struct step_string_info {
     component * pos;
@@ -85,8 +18,29 @@ struct step_string_info {
     int end;
 };
 
+class component_type_error : public std::logic_error {
+    component_type_error(const std::string& message) : std::logic_error("component_type_error: " + message) {}
+    component_type_error(package::category expected, package::category actual) : 
+        std::logic_error("component_type_error: expected " + package::category_string(expected) + ", recieved " + package::category_string(actual)) {}
+};
+class component_error : public std::logic_error {
+    component_error(const std::string& message) : std::logic_error(message) {}
+};
+
 /**
  * stores data for lambda expressions and conatains functions for computation
+ * 
+ * a component may be of three types
+ *   - lambda
+ *   - expr
+ *   - id
+ * 
+ * when using methods prefixed with these names, they are specific to these types
+ * and will result in an error if of the prefixed type. The only exception to this
+ * are the functions `lambda()`, `expr()`, and `id()` which change the type
+ *  
+ * 
+ * 
  **/
 class component {
 private:
@@ -99,8 +53,13 @@ private:
     nullable<component> _tail;
 
 public:
+    /**
+     * this becomes an identical copy of `in`. This includes type, parent, and children.
+     * 
+     * note that children values are copied, not addresses
+     **/
     component& copy(const component& in) {
-        nullable<component> head = in._head;//these are necessary to prevent loss of data if in is a child or this
+        nullable<component> head = in._head;//these are necessary to prevent loss of data if in a child or this
         nullable<component> tail = in._tail;
 
         _parent = nullptr;
@@ -116,8 +75,12 @@ public:
         }
         return *this;
     }
+    /**
+     * Destructively copies `in`. The children of `in` will be nullified and be inaccessable after this call.
+     * This will have the same parent and scope as `in`
+     **/
     component& steal(component&& in) {
-        nullable<component> head = in._head;//these are necessary to prevent loss of data if in is a child or this
+        nullable<component> head = in._head;//these are necessary to prevent loss of data if in a child or this
         nullable<component> tail = in._tail;
 
         _parent = nullptr;
@@ -135,41 +98,89 @@ public:
         assert(is_deep_alloc());
         return *this;
     }
+    /**
+     * Creates an unitialized component (ie is_init() will evaluate to false) in the default package space
+     * 
+     * Use of this is not recommended. It is generally better specify the package space you wish to use to
+     * allow multiple lambda calculus programs run concurrently without conflict
+     **/
     component() {
         _parent = nullptr;
-        _scope = global.get_blank();
+        _scope = default_space.get_blank();
     }
+    /**
+     * creates an unitialized component (ie is_init() is false) in the specified package space
+     **/
+    component(global_package * package_space) {
+    }
+    /**
+     * copy constructor
+     * 
+     * equivalent to `component foo; foo.copy(in);`
+     **/
     component(const component& in) {
         copy(in);
     }
+    /**
+     * move constructor
+     * 
+     * equivalent to `component foo; foo.steal(in);`
+     **/
     component(component&& in) {
         steal(std::move(in));
     }
+    /**
+     * equivalent to component::copy
+     **/
     component& operator=(const component& in) { 
         return copy(in);
     }
+    /**
+     * equivalent to component::steal
+     **/
     component& operator=(component&& in) {
         return steal(std::move(in));
     }
 
+    /**
+     * creates a copy of `copy` but does not modify parent and keeps the scope in the original package space
+     **/
     component& copy_preserve_parent(const component& copy) {
-        component * temp_parent = parent();
-        *this = copy;
-        parent(temp_parent);
-        return *this;
+        return copy_preserve_parent(std::move(component(copy)));
     }
+    /**
+     * move copies `steal` but does not modify parent and keeps the scope in the original package space
+     **/
     component& copy_preserve_parent(component&& steal) {
         component * temp_parent = parent();
+        package * temp_scope = scope();
         *this = std::move(steal);
         parent(temp_parent);
-        assert(is_deep_alloc());
+        scope(scope()->equivalent_in(temp_scope->package_space()));
+        normalize_child_scope();
         return *this;
     }
-
+    /**
+     * returns a pointer to the parent component, or nullptr if it has no parent
+     **/
     component* parent() { return _parent; }
+    /**
+     * returns a const pointer to the parent component, or nullptr if it has no parent
+     **/
     const component* parent() const { return _parent; }
+    /**
+     * sets and the parent component to `replace` and returns
+     * 
+     * set to nullptr if there is no parent
+     **/
     component* parent(component* replace) { return _parent = replace; }
-    component* base_parent() { return const_cast<component*>(static_cast<const component*>(this)->base_parent()); }
+    /**
+     * recursively searches for the topmost parent (which may simply be this) and returns a pointer to it.
+     **/
+    component* base_parent() { return const_cast<component*>(const_cast<const component*>(this)->base_parent()); }
+    /**
+     * recursively searches for the topmost parent (which may simply be this) and returns a const pointer to it.
+     **/
     const component* base_parent() const { 
         const component * node = this;
         while(node->parent() != nullptr) {
@@ -178,48 +189,126 @@ public:
         return node;
     }
 
+    global_package* global_scope() const { return _scope->package_space(); }
+    global_package* global_scope(global_package* replace) { _scope = _scope->equivalent_in(replace); return global_scope(); }
+    /**
+     * Returns the package that determines the scope of this component. See lambda::package for details
+     **/
     package* scope() const { return _scope; }
-    package* scope(package * replace) { return _scope == replace; }
-    package* scope(package::category replace) { return _scope == _scope->package_space().get_by_category(replace); }
+    /**
+     * sets the scope to the specied package and returns it
+     * 
+     * note that this does not force consistency with the parent/previous value (use set_equivalent_scope for that)
+     **/
+    package* scope(package * replace) { return _scope = replace; }
+    /**
+     * Sets the scope to a scope of the corresponding category within the current package space
+     * 
+     * Input of PACKAGE is illegal (because it may refer to multiple packages).
+     * To get an input of type PACKAGE, use `scope()->package_space()->get_package(<package-name>)`
+     **/
+    package* scope(package::category replace) { return _scope = _scope->package_space()->get_by_category(replace); }
+    /**
+     * Sets the scope to an equivalent package within the current package space.
+     * See package::equivalent_in() for more details
+     **/
+    package* set_equivalent_scope(package* replace) { return _scope = _scope->equivalent_in(replace->package_space()); }
+    /**
+     * changes the scope to an equivalent scope within the parents package space.
+     * parents and children should always be within the same namespace before performing computations.
+     **/
+    package* normalize_scope_to_parent() { 
+        if(parent() == nullptr) {
+            return scope();
+        } else {
+            return scope(scope()->equivalent_in(parent()->scope()->package_space()));
+        }
+    }
+    /**
+     * recursively changes the scope of the descendant to be within the same package space as this
+     **/
+    void normalize_child_scope() {
+        if(is_lambda()) {
+            lambda_arg().normalize_scope_to_parent();
+            lambda_arg().normalize_child_scope();
+            lambda_out().normalize_scope_to_parent();
+            lambda_out().normalize_child_scope();
+        } else if(is_expr()) {
+            expr_head().normalize_scope_to_parent();
+            expr_head().normalize_child_scope();
+            expr_tail().normalize_scope_to_parent();
+            expr_tail().normalize_child_scope();
+        }
+    }
 
+    /**
+     * returns the head of the expression, ie the part that appears first.
+     * 
+     * do not set this with `operator=`, use `copy_preserve_parent(arg)` or `expr_head(arg)` to set
+     **/
     component& expr_head() {
         assert(is_expr());
         return _head.get();
     }
+    /**
+     * returns the head of the expression, ie the part that appears second.
+     * 
+     * do not set this with `operator=`, use `copy_preserve_parent(arg)` or `expr_tail(arg)` to set
+     **/
     component& expr_tail() {
         assert(is_expr());
         return _tail.get();
     }
+    /**
+     * returns a const refernce to the expression head
+     **/
     const component& expr_head() const {
         assert(is_expr());
         return _head.get();
     }
+    /**
+     * returns a const reference to the expression tail
+     **/
     const component& expr_tail() const {
         assert(is_expr());
         return _tail.get();
     }
+    /**
+     * sets the expression head, but modifies the parent and package space to match the parent
+     **/
     component& expr_head(const component& copy) {
         assert(is_expr());
         _head.set(copy);
         _head.get().parent(this);
+        _head.get().normalize_scope_to_parent();
+        _head.get().normalize_child_scope();
         return _head.get();
     }
+    /**
+     * sets the expression head, but modifies the parent and package space to match the parent
+     **/
     component& expr_head(component&& copy) {
         assert(is_expr());
         _head.set(std::move(copy));
         _head.get().parent(this);
+        _head.get().normalize_scope_to_parent();
+        _head.get().normalize_child_scope();
         return _head.get();
     }
     component& expr_tail(const component& copy) {
         assert(is_expr());
         _tail.set(copy);
         _tail.get().parent(this);
+        _tail.get().normalize_scope_to_parent();
+        _tail.get().normalize_child_scope();
         return _tail.get();
     }
     component& expr_tail(component&& steal) {
         assert(is_expr());
         _tail.set(std::move(steal));
         _tail.get().parent(this);
+        _tail.get().normalize_scope_to_parent();
+        _tail.get().normalize_child_scope();
         return _tail.get();
     }
 
@@ -252,46 +341,55 @@ public:
         assert(is_lambda());
         _head.set(copy);
         _head.get().parent(this);
+        _head.get().normalize_scope_to_parent();
+        _head.get().normalize_child_scope();
         return _head.get();
     }
     component& lambda_arg(component&& steal) {
         assert(is_lambda());
         _head.set(std::move(steal));
         _head.get().parent(this);
+        _head.get().normalize_scope_to_parent();
+        _head.get().normalize_child_scope();
         return _head.get();
     }
     component& lambda_out(const component& copy) {
         assert(is_lambda());
         _tail.set(copy);
         _tail.get().parent(this);
+        _tail.get().normalize_scope_to_parent();
+        _tail.get().normalize_child_scope();
         return _tail.get();
     }
     component& lambda_out(component&& steal) {
         assert(is_lambda());
         _tail.set(std::move(steal));
         _tail.get().parent(this);
+        _tail.get().normalize_scope_to_parent();
+        _tail.get().normalize_child_scope();
         return _tail.get();
     }
 
     component& clear() {
         _head.nullify();
         _tail.nullify();
-        _scope = _scope.package_space().get_blank();
+        _scope = _scope->package_space()->get_blank();
         _name.nullify();
         
         return *this;
     }
-    component& id(std::string name) {
-        return id(name, _scope.package_space().get_bound());
+    component& id(std::string name, package::category cat = package::BOUND) {
+        return id(name, global_scope()->get_by_category(cat));
     }
     component& id(std::string name, package * pkg) {
         _head.nullify();
         _tail.nullify();
         _scope = pkg;
         _name = name;
-
+        assert(is_id());
         return *this;
     }
+    //TODO add function to normalize the the global_package associated with each scope
     component& lambda(const component& arg, const component& out) {
         return lambda(std::move(component(arg)), std::move(component(out)));
     }
@@ -306,7 +404,7 @@ public:
         component new_out = std::move(out);
 
         //TODO verify that stealing a child works
-        _scope = _scope.package_space().get_lambda();
+        _scope = _scope->package_space()->get_lambda();
 
         lambda_arg(std::move(new_arg));
         lambda_out(std::move(new_out));
@@ -315,6 +413,7 @@ public:
         lambda_arg().parent(this);
         lambda_out().parent(this);
 
+        normalize_child_scope();
         assert(is_deep_alloc());
         return *this;
     }
@@ -331,7 +430,7 @@ public:
         component new_head = std::move(head);//these are necessary to prevent loss of data if head or tail is a child or this
         component new_tail = std::move(tail);
 
-        _scope = _scope.package_space().get_expr();
+        _scope = _scope->package_space()->get_expr();
         
         expr_head(std::move(new_head));
         expr_tail(std::move(new_tail));
@@ -339,6 +438,8 @@ public:
 
         expr_head().parent(this);
         expr_tail().parent(this);
+
+        normalize_child_scope();
 
         assert(is_deep_alloc());
         return *this;
@@ -374,6 +475,8 @@ public:
             return 1;
         }
     }
+    bool is_global() const { return _scope->is_global(); }
+    bool is_bound() const { return _scope->is_bound(); }
 
     component& append(const component& to_add) {
         component copy = to_add;
@@ -414,9 +517,9 @@ public:
     int simplify(int timeout);
 
     int replace_ids(std::string replace_name, const component& replace) {
-        return replace_ids(replace_name, replace, _scope.package_space().bound());
+        return replace_ids(replace_name, replace, _scope->package_space()->get_bound());
     }
-    int replace_ids(std::string replace_name, const component& replace, package* replace_scope = &prepkg::bound);
+    int replace_ids(std::string replace_name, const component& replace, package* replace_scope);
 
     std::string first_name_not_in_ancestors(std::string base_name) const {
         if(!bound_in_ancestor(base_name))
@@ -426,7 +529,8 @@ public:
             if(!bound_in_ancestor(name))
                 return name;            
         }
-        return base_name + "@OVERFLOW";
+        //memory should be a problem looong before reaching this point
+        throw std::runtime_error("number of name variations exceeds integer size");
     }
     static std::string alt_name(std::string base_name, unsigned rev) {
         std::string ret = base_name;
@@ -451,7 +555,7 @@ public:
             return expr_head().bound_from_above(check)
                 || expr_tail().bound_from_above(check);
         } else if (is_id()) {
-            if(id_name() == check && id_is_bound()) {
+            if(id_name() == check && is_bound()) {
                 return true;
             } else {
                 return false;
@@ -471,7 +575,7 @@ public:
             return expr_head().bound_above_below(check)
                 || expr_tail().bound_above_below(check);
         } else if (is_id()) {
-            if(id_name() == check && id_is_bound()) {
+            if(id_name() == check && is_bound()) {
                 return true;
             } else {
                 return false;
@@ -508,10 +612,16 @@ public:
 
     bool match_bound(std::string myid, const component& comp, std::string compid) const;
     bool lambda_arg_match(const component& comp) const;
-    bool compare(const component& comp) const;
-    bool operator==(const component& comp) { return compare(comp); }
-    bool operator!=(const component& comp) { return !compare(comp); }
+    bool equivalent(const component& comp) const;
+    bool operator==(const component& comp) { return equivalent(comp); }
+    bool operator!=(const component& comp) { return !equivalent(comp); }
 
+    package::category get_category() const {
+        return scope()->get_category();
+    }
+    void set_category(package::category c) {
+        scope(scope()->package_space()->get_by_category(c));
+    }
 };
 
 
@@ -519,4 +629,4 @@ public:
 }
 
 
-#endif
+#endif //LAMBDA_COMPONENT_H
