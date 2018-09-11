@@ -1,5 +1,11 @@
 *.exe
 *.o
-*.json
 *.stackdump
 *.obj
+*.d
+*.out
+*.output
+
+/.vscode
+/sandbox
+

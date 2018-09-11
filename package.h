@@ -69,8 +69,8 @@ public:
         bound(this, "", package::BOUND),
         global(this, "", package::GLOBAL),
         lambda(this, "", package::LAMBDA),
-        blank(this, "", package::EMPTY),
-        expr(this, "", package::EXPR) {}        
+        expr(this, "", package::EXPR),
+        blank(this, "", package::EMPTY) {}        
 
     package * add_package(std::string key);
     package * get_package(std::string key);

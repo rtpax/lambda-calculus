@@ -269,15 +269,6 @@ global_package * load_file(std::string filename) {
                     emit_warning("stopped evaluating lambda after timeout",tik->line_num,tik->filename);
                 }
                 
-                if(definition.null() || !lazy_def) {
-                    /*if(timeout != 0) {
-                        int timeleft = node->simplify(timeout);
-                        std::cout << "\n    " << node->to_string() << "[" << (timeout - timeleft) << "]";
-                        if(timeout == 0) {
-                            emit_warning("stopped evaluating lambda after timeout",tik->line_num,tik->filename);
-                        }
-                    }*/
-                }
                 if(!definition.null()) {
                     for (std::string p : pkgs) {
                         if (global->get_package(p)->get_value(definition) != nullptr) {
@@ -312,18 +303,6 @@ int evaluate_line(std::vector<token> line, int max_steps) {
     return 0;
 }
 
-}
-
-
-using namespace lambda;
-
-int main(int argc, char ** argv) {
-    if(argc <= 1) {
-        std::cout << "must input a file";
-        return 1;
-    }
-    load_file(argv[1]);
-    return 0;
 }
 
 

@@ -1,0 +1,4 @@
+~   Added makefile
+~   Added LICENSE
+~   Fixed compiler errors/warning from recent additions (unused var, unsigned signed comp)
+~   Moved main function to main.cpp

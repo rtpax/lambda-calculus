@@ -1,35 +1,20 @@
-add support for global_package
-    automatically adopt global of parent component when adding
-    packages have reverse lookup info
-        knows it's global_package
-        knows it's name
-    ids have reverse lookup info
-        knows it's package (so by extension it's global package and package name)
-        knows it's name
-    each global_package has lambda,expr,bound,global
-        when adding convert lambda,expr,bound,global to applicable one in new global_package
-        when adding convert a package to a package of the same name in new global_package (create if non-existant)
-    packages have field LAMBDA,EXPR,BOUND,GLOBAL,PACKAGE
-        only PACKAGE has members, all others are dummies
-    may create a component without specific package and use dummies as normal
-        ideally should not stay in that state, avoid changing
-    scope will be raw pointer to package
-    
-add random solving to component
+
+-add random solving to component
     if able, evaluate halting steps
     else generate the list of allowable operations and perform one at random
     else done
 
 
-only one package can be "open" at a time; eg this is illegal:
-A::
-B::
-::A
-::B
+-only one package can be "open" at a time; eg this is illegal:
 
+    A::
+    B::
+    ::A
+    ::B
 
+-TEST
 
-finish display, thoughts about how it might look below
+-finish display, thoughts about how it might look below:
 
 
 
@@ -38,11 +23,8 @@ finish display, thoughts about how it might look below
 
     h       help
 
-    
 
-
-
-
+/////////////////////////////////////////////////////////
 
 
 

@@ -322,6 +322,8 @@ bool component::equivalent(const component& comp) const {
         } else { //let the lambda section determine how to interpret bound ids
             return true;
         }
+    } else {
+        throw std::logic_error("Cannot compare component of indeterminant type");
     }
 }
 
@@ -462,6 +464,7 @@ std::vector<step_string_info> component::step_string(std::string& out, std::vect
                 ret.insert(ret.end(), subret.begin(), subret.end());
             }
             to_add.end = out.size();
+            ret.push_back(to_add);
         } else {
             if(expr_head().is_lambda()) {
                 out += "(";
@@ -516,6 +519,7 @@ std::vector<step_string_info> component::step_string(std::string& out, std::vect
         }
         if(pos != steps.end()) {
             to_add.end = out.size();
+            ret.push_back(to_add);
             steps.erase(pos);
         }
     } else {
@@ -525,11 +529,11 @@ std::vector<step_string_info> component::step_string(std::string& out, std::vect
     for(size_t i = 0; i < out.size();) {
         if(out.at(i) == ' ' && ((i + 1) < out.size() ? is_name_break(out.at(i + 1)) : 1)) {
             for(step_string_info& ssi : ret) {
-                if(ssi.begin > i)
+                if(ssi.begin > (int)i)
                     --ssi.begin;
-                if(ssi.middle > i)
+                if(ssi.middle > (int)i)
                     --ssi.middle;
-                if(ssi.end > i)
+                if(ssi.end > (int)i)
                     --ssi.end;
             }
             out.erase(i, 1);
@@ -537,6 +541,7 @@ std::vector<step_string_info> component::step_string(std::string& out, std::vect
             ++i;
         }
     }
+    return ret;
 }
 
 
